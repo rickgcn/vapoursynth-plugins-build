@@ -10,13 +10,24 @@ releases:
     source: https://github.com/FFMS/ffms2/archive/refs/tags/5.0.tar.gz
     hash: sha256sum:7770af0bbc0063f9580a6a5c8e7c51f1788f171d7da0b352e48a1e60943a8c3c
     dependencies:
-      - name: zlib
-        version: 1.3.1
-      - name: dav1d
-        version: 1.5.2
-      - name: ffmpeg
-        version: 1.3.1
+      "(linux|darwin)-.*":
+        - name: zlib
+          version: 1.3.1
+        - name: dav1d
+          version: 1.5.2
+        - name: ffmpeg
+          version: 1.3.1
     build:
+      windows-.*:
+        commands:
+          - cwd: "{WORKDIR}"
+            cmd: tar xf {DL_FILE_NAME}
+          - cwd: "{WORKDIR}/ffms2-5.0"
+            cmd: vcpkg install ffmpeg[avcodec,avdevice,avfilter,avformat,swresample,swscale,zlib,bzip2,core,dav1d,gpl,version3,lzma,openssl,xml2]:x86-windows-static
+          - cmd: vcpkg install ffmpeg[avcodec,avdevice,avfilter,avformat,swresample,swscale,zlib,bzip2,core,dav1d,gpl,version3,lzma,openssl,xml2]:x64-windows-static
+          - cmd: vcpkg integrate install
+          - cmd: MSBuild.exe /t:Rebuild /p:PlatformToolset=v143 /m /p:Configuration=Release /p:Platform=x86 "./build-msvc/ffms2.sln"
+          - cmd: MSBuild.exe /t:Rebuild /p:PlatformToolset=v143 /m /p:Configuration=Release /p:Platform=x64 "./build-msvc/ffms2.sln"
       darwin-.*:
         env:
           CFLAGS: "-O3 -fPIC"
@@ -28,7 +39,7 @@ releases:
             cmd: ./configure --prefix={PREFIXDIR}
           - cmd: make -j$(nproc)
           - cmd: make install
-      .*:
+      linux-.*:
         env:
           CFLAGS: "-O3 -fPIC"
           CXXFLAGS: "-O3 -fPIC"
@@ -41,7 +52,14 @@ releases:
           - cmd: make -j$(nproc)
           - cmd: make install
     artifacts:
-      - "{PREFIXDIR}/lib/libffms2.so"
+      windows-x86:
+        - "{WORKDIR}/ffms2-5.0/build-msvc/bin/Win32/Release/ffms2.dll"
+      windows-x64:
+        - "{WORKDIR}/ffms2-5.0/build-msvc/bin/x64/Release/ffms2.dll"
+      linux-.*:
+        - "{PREFIXDIR}/lib/libffms2.so"
+      darwin-.*:
+        - "{PREFIXDIR}/lib/libffms2.dylib"
 dependencies:
   zlib:
     repository: https://github.com/madler/zlib.git
@@ -52,7 +70,7 @@ dependencies:
         source: https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
         hash: sha256sum:9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
         build:
-          .*:
+          "(linux|darwin)-.*":
             env:
               CFLAGS: "-O3 -fPIC"
               CXXFLAGS: "-O3 -fPIC"
@@ -72,7 +90,7 @@ dependencies:
         source: https://code.videolan.org/videolan/dav1d/-/archive/1.5.2/dav1d-1.5.2.tar.gz
         hash: sha256sum:2fc0810b4cdf72784b3c107827ff10b1d83ec709a1ec1fbdbc6a932daf65ead6
         build:
-          .*:
+          "(linux|darwin)-.*":
             env:
               CFLAGS: "-O3 -fPIC"
               CXXFLAGS: "-O3 -fPIC"
@@ -92,7 +110,7 @@ dependencies:
         source: https://ffmpeg.org/releases/ffmpeg-6.1.3.tar.gz
         hash: sha256sum:3be466dfd1a312d752c20ece5b413248a5808fba3c967da0624bac48a4380857
         build:
-          .*:
+          "(linux|darwin)-.*":
             env:
               CFLAGS: "-O3 -fPIC"
               CXXFLAGS: "-O3 -fPIC"
