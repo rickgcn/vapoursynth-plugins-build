@@ -57,7 +57,9 @@ jobs:
       - name: Create symlinks for toolchain executables
         run: |
           cd $HOME/x-tools/x86_64-unknown-linux-musl/bin
-          ls -la
+
+          # Add write permission to directory
+          chmod u+w .
 
           # Create symlinks without the target prefix
           for file in x86_64-unknown-linux-musl-*; do
@@ -148,6 +150,9 @@ jobs:
         run: |
           cd $HOME/x-tools/x86_64-unknown-linux-gnu/bin
 
+          # Add write permission to directory
+          chmod u+w .
+
           # Create symlinks without the target prefix
           for file in x86_64-unknown-linux-gnu-*; do
             if [ -f "$file" ] && [ -x "$file" ]; then
@@ -216,38 +221,13 @@ jobs:
 
           # Combine info files
           cat > release-files/README.md <<'EOF'
-          # Cross-compilation Toolchains
+          These toolchains are intended for building VapourSynth plugins in this repository.
 
-          Pre-built toolchains for building VapourSynth plugins with old Linux compatibility.
-
-          ## Available Toolchains
+          ## Build Information
 
           EOF
 
           find toolchains -name "toolchain-info.txt" -exec cat {} \; >> release-files/README.md
-
-          cat >> release-files/README.md <<'EOF'
-
-          ## Usage
-
-          ### musl toolchain
-          ```bash
-          tar xzf x86_64-linux-musl-toolchain.tar.gz
-          export PATH="$PWD/x86_64-unknown-linux-musl/bin:$PATH"
-          ```
-
-          ### glibc 2.17 toolchain
-          ```bash
-          tar xzf x86_64-linux-glibc-toolchain.tar.gz
-          export PATH="$PWD/x86_64-unknown-linux-gnu/bin:$PATH"
-          ```
-
-          ## Compatibility
-
-          - **musl**: Compatible with any Linux system (static linking)
-          - **glibc 2.17**: Compatible with CentOS 7, RHEL 7, and newer systems
-          - **Kernel**: Minimum 3.2.101
-          EOF
 
           ls -lh release-files/
 
