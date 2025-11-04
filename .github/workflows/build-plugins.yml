@@ -136,6 +136,7 @@ jobs:
 
       # Build the plugin
       - name: Build plugin
+        id: build
         shell: bash
         run: |
           # Set PREFIXDIR argument if defined
@@ -145,15 +146,15 @@ jobs:
             PREFIXDIR_ARG=""
           fi
 
-          # Run build script
+          # Run build script and capture output
           python scripts/build.py \
             --plugin "${{ matrix.plugin }}" \
             --version "${{ matrix.version }}" \
             --platform "${{ matrix.platform }}" \
             --workdir "${{ runner.temp }}/build" \
-            $PREFIXDIR_ARG
+            $PREFIXDIR_ARG | tee build_output.log
 
-      # Find and upload artifacts
+      # Collect artifacts from YAML-defined paths
       - name: Collect artifacts
         id: artifacts
         shell: bash
@@ -161,18 +162,19 @@ jobs:
           # Create artifacts directory
           mkdir -p artifacts
 
-          # Copy built files based on platform
-          if [[ "${{ matrix.platform }}" == windows-* ]]; then
-            find "${{ runner.temp }}/build" -name "*.dll" -exec cp {} artifacts/ \;
-          elif [[ "${{ matrix.platform }}" == linux-* ]]; then
-            find "${{ runner.temp }}/build" -name "*.so" -o -path "*/lib/*.so" | xargs -I {} cp {} artifacts/ 2>/dev/null || true
-            find "$PREFIXDIR/lib" -name "*.so" -exec cp {} artifacts/ \; 2>/dev/null || true
-          elif [[ "${{ matrix.platform }}" == darwin-* ]]; then
-            find "${{ runner.temp }}/build" -name "*.dylib" -o -path "*/lib/*.dylib" | xargs -I {} cp {} artifacts/ 2>/dev/null || true
-            find "$PREFIXDIR/lib" -name "*.dylib" -exec cp {} artifacts/ \; 2>/dev/null || true
-          fi
+          # Extract artifact paths from build output
+          # Look for lines after "ARTIFACTS:" marker
+          sed -n '/^ARTIFACTS:$/,$ p' build_output.log | tail -n +2 | grep -v '^$' | while read -r artifact_path; do
+            if [ -f "$artifact_path" ]; then
+              # Use cp -L to dereference symlinks and copy actual files
+              cp -L "$artifact_path" artifacts/
+              echo "Copied: $artifact_path (dereferencing symlinks)"
+            else
+              echo "Warning: Artifact not found: $artifact_path"
+            fi
+          done
 
-          # List what we found
+          # List what we collected
           echo "Artifacts collected:"
           ls -lh artifacts/
 
