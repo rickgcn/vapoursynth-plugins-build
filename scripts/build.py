@@ -136,17 +136,20 @@ class DependencyBuilder:
 
         # Execute commands
         commands = build_config.get('commands', [])
+        current_cwd = str(self.workdir)  # Track current working directory
+
         for cmd_entry in commands:
             if isinstance(cmd_entry, dict):
-                cwd = cmd_entry.get('cwd', str(self.workdir))
+                # Update cwd if specified, otherwise keep current
+                if 'cwd' in cmd_entry:
+                    current_cwd = cmd_entry['cwd']
                 cmd = cmd_entry['cmd']
             else:
-                cwd = str(self.workdir)
                 cmd = cmd_entry
 
             # Substitute variables in command and cwd
             cmd = EnvironmentManager.substitute_vars(cmd, self.env)
-            cwd = EnvironmentManager.substitute_vars(cwd, self.env)
+            cwd = EnvironmentManager.substitute_vars(current_cwd, self.env)
 
             print(f"\n[{cwd}]$ {cmd}")
 
