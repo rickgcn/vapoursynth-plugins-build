@@ -324,44 +324,171 @@ jobs:
             --artifact-dir "${{ runner.temp }}/artifacts" \
             --testdir "${{ runner.temp }}/test"
 
-  # Optional: Create release with all artifacts
-  create-release:
-    name: Create Release
+  # Job 5: Generate release matrix (per plugin-version)
+  generate-release-matrix:
+    name: Generate Release Matrix
     needs: [build, test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Run if build succeeded and test either succeeded or was skipped (no tests defined)
+    # Only run on push to main branch
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+      has-releases: ${{ steps.generate.outputs.has-releases }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Generate release matrix
+        id: generate
+        run: |
+          # Generate unique plugin-version combinations
+          MATRIX=$(python scripts/generate_matrix.py --type build --output json | \
+            jq '[.[] | {plugin: .plugin, version: .version}] | unique')
+
+          # Check if matrix is empty
+          if echo "$MATRIX" | jq -e 'length > 0' > /dev/null; then
+            echo "has-releases=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-releases=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Convert to GitHub Actions matrix format
+          GITHUB_MATRIX=$(echo "$MATRIX" | jq '{include: .}')
+          echo "matrix=$GITHUB_MATRIX" >> $GITHUB_OUTPUT
+
+          # Pretty print for logs
+          echo "Generated release matrix:"
+          echo "$GITHUB_MATRIX" | jq .
+
+  # Job 6: Create releases (one per plugin-version)
+  create-release:
+    name: Release ${{ matrix.plugin }} ${{ matrix.version }}
+    needs: [test, generate-release-matrix]
+    if: needs.generate-release-matrix.outputs.has-releases == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-release-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Check if release already exists
+        id: check-tag
+        run: |
+          TAG_NAME="${{ matrix.plugin }}-${{ matrix.version }}"
+
+          # Check if tag exists
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME$"; then
+            echo "Tag $TAG_NAME already exists, skipping release"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG_NAME does not exist, will create release"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts for this plugin-version
+        if: steps.check-tag.outputs.skip == 'false'
         uses: actions/download-artifact@v4
         with:
-          path: all-artifacts
+          pattern: ${{ matrix.plugin }}-${{ matrix.version }}-*
+          path: artifacts
 
-      - name: Create release archive
+      - name: Create release archives
+        if: steps.check-tag.outputs.skip == 'false'
         run: |
-          # Create date-based tag
-          TAG_NAME="build-$(date +%Y%m%d-%H%M%S)"
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          mkdir -p release-files
 
-          # Create archives for each plugin
-          cd all-artifacts
+          # Create archives for each platform
+          cd artifacts
           for dir in */; do
-            plugin_name="${dir%/}"
-            tar czf "${plugin_name}.tar.gz" "$plugin_name"
+            if [ -d "$dir" ]; then
+              artifact_name="${dir%/}"
+              echo "Creating archive for $artifact_name"
+              tar czf "../release-files/${artifact_name}.tar.gz" -C "$dir" .
+            fi
           done
           cd ..
 
-      - name: Create Release
+          # List what we created
+          echo "Release archives created:"
+          ls -lh release-files/
+
+      - name: Load plugin metadata
+        if: steps.check-tag.outputs.skip == 'false'
+        id: metadata
+        run: |
+          # Load plugin config to get description, license, etc.
+          PLUGIN_CONFIG="plugins/${{ matrix.plugin }}/${{ matrix.plugin }}.yml"
+
+          if [ -f "$PLUGIN_CONFIG" ]; then
+            DESCRIPTION=$(python3 -c "import yaml; config = yaml.safe_load(open('$PLUGIN_CONFIG')); print(config.get('description', ''))")
+            LICENSE=$(python3 -c "import yaml; config = yaml.safe_load(open('$PLUGIN_CONFIG')); print(config.get('license', 'Unknown'))")
+            REPOSITORY=$(python3 -c "import yaml; config = yaml.safe_load(open('$PLUGIN_CONFIG')); print(config.get('repository', ''))")
+
+            echo "description=$DESCRIPTION" >> $GITHUB_OUTPUT
+            echo "license=$LICENSE" >> $GITHUB_OUTPUT
+            echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check-tag.outputs.skip == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          name: Automated Build ${{ env.TAG_NAME }}
+          tag_name: ${{ steps.check-tag.outputs.tag_name }}
+          name: ${{ matrix.plugin }} ${{ matrix.version }}
+          body: |
+            # ${{ matrix.plugin }} ${{ matrix.version }}
+
+            ${{ steps.metadata.outputs.description }}
+
+            ## Build Information
+            - **Version**: ${{ matrix.version }}
+            - **License**: ${{ steps.metadata.outputs.license }}
+            - **Source Repository**: ${{ steps.metadata.outputs.repository }}
+            - **Built on**: ${{ github.sha }}
+
+            ## Platforms
+            This release includes builds for:
+            - Windows (x86, x64)
+            - Linux (x86_64 glibc, x86_64 musl)
+            - macOS (x86_64 Intel, aarch64 Apple Silicon)
+
+            ## Installation
+            Download the appropriate archive for your platform and extract the plugin file to your VapourSynth plugins directory.
+
+            ---
+            🤖 Automated build from commit ${{ github.sha }}
           draft: false
           prerelease: false
-          files: all-artifacts/*.tar.gz
+          files: release-files/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
