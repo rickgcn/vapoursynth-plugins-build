@@ -29,6 +29,7 @@ jobs:
         run: |
           git clone https://github.com/sekrit-twc/zimg.git --recursive
           cd zimg
+          git checkout release-3.0.6
           ./autogen.sh
           ./configure --prefix=/usr/local CFLAGS="-O3 -fPIC" CXXFLAGS="-O3 -fPIC"
           make -j$(nproc)
