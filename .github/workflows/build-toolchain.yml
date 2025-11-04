@@ -46,6 +46,25 @@ jobs:
           cd $HOME/build-musl
           ct-ng build
 
+      - name: Create symlinks for toolchain executables
+        run: |
+          cd $HOME/x-tools/x86_64-unknown-linux-musl/bin
+
+          # Create symlinks without the target prefix
+          for file in x86_64-unknown-linux-musl-*; do
+            if [ -f "$file" ] && [ -x "$file" ]; then
+              # Extract the tool name without prefix
+              tool_name="${file#x86_64-unknown-linux-musl-}"
+
+              # Create symlink
+              ln -sf "$file" "$tool_name"
+              echo "Created symlink: $tool_name -> $file"
+            fi
+          done
+
+          # List all files to verify
+          ls -lh
+
       - name: Package toolchain
         run: |
           cd $HOME/x-tools
@@ -107,6 +126,25 @@ jobs:
         run: |
           cd $HOME/build-glibc
           ct-ng build
+
+      - name: Create symlinks for toolchain executables
+        run: |
+          cd $HOME/x-tools/x86_64-unknown-linux-gnu/bin
+
+          # Create symlinks without the target prefix
+          for file in x86_64-unknown-linux-gnu-*; do
+            if [ -f "$file" ] && [ -x "$file" ]; then
+              # Extract the tool name without prefix
+              tool_name="${file#x86_64-unknown-linux-gnu-}"
+
+              # Create symlink
+              ln -sf "$file" "$tool_name"
+              echo "Created symlink: $tool_name -> $file"
+            fi
+          done
+
+          # List all files to verify
+          ls -lh
 
       - name: Package toolchain
         run: |
