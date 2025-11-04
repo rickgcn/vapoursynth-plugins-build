@@ -33,7 +33,7 @@ jobs:
           ./configure --prefix=/usr/local CFLAGS="-O3 -fPIC" CXXFLAGS="-O3 -fPIC"
           make -j$(nproc)
           sudo make install
-          make install DESTDIR=$HOME/vapoursynth-install
+          make install DESTDIR=$HOME/destdir
           sudo ldconfig
 
       - name: Build VapourSynth
@@ -47,14 +47,15 @@ jobs:
             CXXFLAGS="-O3 -fPIC"
 
           make -j$(nproc)
-          make install DESTDIR=$HOME/vapoursynth-install
+          make install DESTDIR=$HOME/destdir
 
       - name: Package VapourSynth
         run: |
-          cd $HOME/vapoursynth-install
-          tar czf vapoursynth-${{ github.event.inputs.version }}-linux-glibc.tar.gz usr/local
+          cd $HOME/destdir/usr/local
+          tar czf $HOME/destdir/vapoursynth-${{ github.event.inputs.version }}-linux-glibc.tar.gz .
 
           # Generate metadata
+          cd $HOME/destdir
           cat > vapoursynth-info.txt <<EOF
           VapourSynth Version: ${{ github.event.inputs.version }}
           Platform: Linux x86_64
@@ -71,8 +72,8 @@ jobs:
         with:
           name: vapoursynth-${{ github.event.inputs.version }}-linux-glibc
           path: |
-            ~/vapoursynth-install/vapoursynth-*.tar.gz
-            ~/vapoursynth-install/vapoursynth-info.txt
+            ~/destdir/vapoursynth-*.tar.gz
+            ~/destdir/vapoursynth-info.txt
           retention-days: 90
 
   create-release:
@@ -129,15 +130,17 @@ jobs:
 
           ### Extract to system
           ```bash
-          sudo tar xzf vapoursynth-*-linux-glibc.tar.gz -C /
+          sudo tar xzf vapoursynth-*-linux-glibc.tar.gz -C /usr/local
+          sudo ldconfig
           ```
 
           ### Extract to custom location
           ```bash
+          mkdir -p $HOME/vapoursynth
           tar xzf vapoursynth-*-linux-glibc.tar.gz -C $HOME/vapoursynth
-          export PATH="$HOME/vapoursynth/usr/local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/vapoursynth/usr/local/lib:$LD_LIBRARY_PATH"
-          export PYTHONPATH="$HOME/vapoursynth/usr/local/lib/python3/site-packages:$PYTHONPATH"
+          export PATH="$HOME/vapoursynth/bin:$PATH"
+          export LD_LIBRARY_PATH="$HOME/vapoursynth/lib:$LD_LIBRARY_PATH"
+          export PYTHONPATH="$HOME/vapoursynth/lib/python3/site-packages:$PYTHONPATH"
           ```
 
           ## Usage
