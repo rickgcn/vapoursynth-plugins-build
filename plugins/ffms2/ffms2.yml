@@ -164,7 +164,7 @@ attachments:
       import vapoursynth as vs
       core = vs.core
       core.std.LoadPlugin('{PLUGIN_PATH}')
-      clip = core.ffms2.Source('av1-test.mkv', cache=False)
+      clip = core.ffms2.Source('h264-test.mkv', cache=False)
       clip.set_output(0)
   h264-test.mkv:
     path: "{TESTDIR}"
@@ -177,7 +177,7 @@ attachments:
       import vapoursynth as vs
       core = vs.core
       core.std.LoadPlugin('{PLUGIN_PATH}')
-      clip = core.ffms2.Source('av1-test.mkv', cache=False)
+      clip = core.ffms2.Source('hevc-test.mkv', cache=False)
       clip.set_output(0)
   hevc-test.mkv:
     path: "{TESTDIR}"
