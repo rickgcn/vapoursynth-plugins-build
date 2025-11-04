@@ -144,12 +144,12 @@ def get_runner_for_platform(platform: str) -> str:
     if platform.startswith('windows'):
         return 'windows-latest'
     elif platform.startswith('linux'):
-        return 'ubuntu-latest'
+        return 'ubuntu-24.04'
     elif platform.startswith('darwin'):
         if 'aarch64' in platform:
-            return 'macos-14'  # M1/M2 runners
+            return 'macos-15'  # Apple Silicon (M1/M2/M3)
         else:
-            return 'macos-13'  # Intel runners
+            return 'macos-15-intel'  # Intel
     else:
         raise ValueError(f"Unknown platform: {platform}")
 

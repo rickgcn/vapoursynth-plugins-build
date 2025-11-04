@@ -18,7 +18,7 @@ jobs:
   # Job 1: Generate build matrix
   generate-matrix:
     name: Generate Build Matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
       has-builds: ${{ steps.generate.outputs.has-builds }}
@@ -187,7 +187,7 @@ jobs:
   generate-test-matrix:
     name: Generate Test Matrix
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
       has-tests: ${{ steps.generate.outputs.has-tests }}
@@ -327,7 +327,7 @@ jobs:
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
       has-releases: ${{ steps.generate.outputs.has-releases }}
@@ -371,7 +371,7 @@ jobs:
     name: Release ${{ matrix.plugin }} ${{ matrix.version }}
     needs: [test, generate-release-matrix]
     if: needs.generate-release-matrix.outputs.has-releases == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     strategy:
