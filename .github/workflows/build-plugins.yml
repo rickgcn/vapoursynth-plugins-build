@@ -1,0 +1,367 @@
+name: Build VapourSynth Plugins
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      plugins:
+        description: 'Plugins to build (space-separated, leave empty for all)'
+        required: false
+        default: ''
+
+jobs:
+  # Job 1: Generate build matrix
+  generate-matrix:
+    name: Generate Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+      has-builds: ${{ steps.generate.outputs.has-builds }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Generate build matrix
+        id: generate
+        run: |
+          # Parse workflow_dispatch input for plugins
+          PLUGINS_INPUT="${{ github.event.inputs.plugins }}"
+
+          if [ -n "$PLUGINS_INPUT" ]; then
+            # Convert space-separated list to arguments
+            PLUGINS_ARGS="--plugins $PLUGINS_INPUT"
+          else
+            PLUGINS_ARGS=""
+          fi
+
+          # Generate matrix
+          MATRIX=$(python scripts/generate_matrix.py --type build $PLUGINS_ARGS --output github)
+
+          # Check if matrix is empty
+          if echo "$MATRIX" | jq -e '.include | length > 0' > /dev/null; then
+            echo "has-builds=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-builds=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Output matrix for next job
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+          # Pretty print for logs
+          echo "Generated build matrix:"
+          echo "$MATRIX" | jq .
+
+  # Job 2: Build plugins using matrix
+  build:
+    name: Build ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
+    needs: generate-matrix
+    if: needs.generate-matrix.outputs.has-builds == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyyaml zstandard
+
+      # Platform-specific setup for Linux
+      - name: Setup Linux build environment
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            nasm \
+            yasm \
+            meson \
+            ninja-build \
+            cmake
+
+      # Platform-specific setup for macOS
+      - name: Setup macOS build environment
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            nasm \
+            yasm \
+            meson \
+            ninja \
+            cmake
+
+      # Platform-specific setup for Windows
+      - name: Setup Windows build environment
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+          cd C:\vcpkg
+          .\bootstrap-vcpkg.bat
+          echo "C:\vcpkg" >> $env:GITHUB_PATH
+
+      # Determine PREFIXDIR based on platform
+      - name: Set environment variables
+        id: env
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform }}" == darwin-aarch64 ]]; then
+            echo "PREFIXDIR=/opt/homebrew" >> $GITHUB_ENV
+          elif [[ "${{ matrix.platform }}" == darwin-x86_64 ]] || [[ "${{ matrix.platform }}" == linux-* ]]; then
+            echo "PREFIXDIR=/usr/local" >> $GITHUB_ENV
+          fi
+
+      # Build the plugin
+      - name: Build plugin
+        shell: bash
+        run: |
+          # Set PREFIXDIR argument if defined
+          if [ -n "$PREFIXDIR" ]; then
+            PREFIXDIR_ARG="--prefixdir $PREFIXDIR"
+          else
+            PREFIXDIR_ARG=""
+          fi
+
+          # Run build script
+          python scripts/build.py \
+            --plugin "${{ matrix.plugin }}" \
+            --version "${{ matrix.version }}" \
+            --platform "${{ matrix.platform }}" \
+            --workdir "${{ runner.temp }}/build" \
+            $PREFIXDIR_ARG
+
+      # Find and upload artifacts
+      - name: Collect artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          # Create artifacts directory
+          mkdir -p artifacts
+
+          # Copy built files based on platform
+          if [[ "${{ matrix.platform }}" == windows-* ]]; then
+            find "${{ runner.temp }}/build" -name "*.dll" -exec cp {} artifacts/ \;
+          elif [[ "${{ matrix.platform }}" == linux-* ]]; then
+            find "${{ runner.temp }}/build" -name "*.so" -o -path "*/lib/*.so" | xargs -I {} cp {} artifacts/ 2>/dev/null || true
+            find "$PREFIXDIR/lib" -name "*.so" -exec cp {} artifacts/ \; 2>/dev/null || true
+          elif [[ "${{ matrix.platform }}" == darwin-* ]]; then
+            find "${{ runner.temp }}/build" -name "*.dylib" -o -path "*/lib/*.dylib" | xargs -I {} cp {} artifacts/ 2>/dev/null || true
+            find "$PREFIXDIR/lib" -name "*.dylib" -exec cp {} artifacts/ \; 2>/dev/null || true
+          fi
+
+          # List what we found
+          echo "Artifacts collected:"
+          ls -lh artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
+          path: artifacts/
+          retention-days: 7
+
+  # Job 3: Generate test matrix
+  generate-test-matrix:
+    name: Generate Test Matrix
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+      has-tests: ${{ steps.generate.outputs.has-tests }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Generate test matrix
+        id: generate
+        run: |
+          # Parse workflow_dispatch input for plugins
+          PLUGINS_INPUT="${{ github.event.inputs.plugins }}"
+
+          if [ -n "$PLUGINS_INPUT" ]; then
+            # Convert space-separated list to arguments
+            PLUGINS_ARGS="--plugins $PLUGINS_INPUT"
+          else
+            PLUGINS_ARGS=""
+          fi
+
+          # Generate test matrix
+          MATRIX=$(python scripts/generate_matrix.py --type test $PLUGINS_ARGS --output github)
+
+          # Check if matrix is empty
+          if echo "$MATRIX" | jq -e '.include | length > 0' > /dev/null; then
+            echo "has-tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-tests=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Output matrix for next job
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+          # Pretty print for logs
+          echo "Generated test matrix:"
+          echo "$MATRIX" | jq .
+
+  # Job 4: Test plugins using matrix
+  test:
+    name: Test ${{ matrix.plugin }} - ${{ matrix.test_name }} (${{ matrix.platform }})
+    needs: generate-test-matrix
+    if: needs.generate-test-matrix.outputs.has-tests == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-test-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyyaml zstandard
+
+      # Install VapourSynth for testing
+      - name: Install VapourSynth (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y vapoursynth python3-vapoursynth
+
+      - name: Install VapourSynth (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install vapoursynth
+
+      - name: Install VapourSynth (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Download and install VapourSynth
+          $url = "https://github.com/vapoursynth/vapoursynth/releases/latest/download/VapourSynth64-Portable.7z"
+          $output = "$env:TEMP\vapoursynth.7z"
+          Invoke-WebRequest -Uri $url -OutFile $output
+
+          # Extract (assuming 7z is available)
+          7z x $output -o"C:\VapourSynth"
+
+          # Add to PATH
+          echo "C:\VapourSynth" >> $env:GITHUB_PATH
+
+      # Download build artifacts
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
+          path: ${{ runner.temp }}/artifacts
+
+      # Determine plugin path for testing
+      - name: Setup plugin path
+        id: plugin-path
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform }}" == windows-* ]]; then
+            echo "PLUGIN_PATH=C:/" >> $GITHUB_ENV
+            cp "${{ runner.temp }}/artifacts"/* C:/ 2>/dev/null || true
+          else
+            echo "PLUGIN_PATH=/tmp" >> $GITHUB_ENV
+            cp "${{ runner.temp }}/artifacts"/* /tmp/ 2>/dev/null || true
+          fi
+
+      # Run the test
+      - name: Run test
+        shell: bash
+        run: |
+          python scripts/test.py \
+            --plugin "${{ matrix.plugin }}" \
+            --version "${{ matrix.version }}" \
+            --platform "${{ matrix.platform }}" \
+            --test-name "${{ matrix.test_name }}" \
+            --artifact-dir "${{ runner.temp }}/artifacts" \
+            --testdir "${{ runner.temp }}/test"
+
+  # Optional: Create release with all artifacts
+  create-release:
+    name: Create Release
+    needs: [build, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: Create release archive
+        run: |
+          # Create date-based tag
+          TAG_NAME="build-$(date +%Y%m%d-%H%M%S)"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+
+          # Create archives for each plugin
+          cd all-artifacts
+          for dir in */; do
+            plugin_name="${dir%/}"
+            tar czf "${plugin_name}.tar.gz" "$plugin_name"
+          done
+          cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Automated Build ${{ env.TAG_NAME }}
+          draft: false
+          prerelease: false
+          files: all-artifacts/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
