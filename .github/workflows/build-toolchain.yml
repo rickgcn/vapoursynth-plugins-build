@@ -31,6 +31,7 @@ jobs:
       - name: Build crosstool-NG
         run: |
           cd crosstool-ng-1.28.0
+          ./bootstrap
           ./configure --prefix=/usr/local
           make -j$(nproc)
           sudo make install
@@ -112,6 +113,7 @@ jobs:
       - name: Build crosstool-NG
         run: |
           cd crosstool-ng-1.28.0
+          ./bootstrap
           ./configure --prefix=/usr/local
           make -j$(nproc)
           sudo make install
