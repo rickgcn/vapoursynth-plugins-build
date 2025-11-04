@@ -33,7 +33,7 @@ jobs:
           cd crosstool-ng-1.28.0
           ./configure --prefix=/usr/local
           make -j$(nproc)
-          make install
+          sudo make install
 
       - name: Configure musl toolchain
         run: |
@@ -114,7 +114,7 @@ jobs:
           cd crosstool-ng-1.28.0
           ./configure --prefix=/usr/local
           make -j$(nproc)
-          make install
+          sudo make install
 
       - name: Configure glibc toolchain
         run: |
