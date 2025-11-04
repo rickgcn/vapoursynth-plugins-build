@@ -111,7 +111,7 @@ jobs:
 
       - name: Build crosstool-NG
         run: |
-          cd crosstool-ng
+          cd crosstool-ng-1.28.0
           ./configure --prefix=/usr/local
           make -j$(nproc)
           make install

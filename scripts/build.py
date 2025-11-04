@@ -27,7 +27,7 @@ from utils import (
 class DependencyBuilder:
     """Build plugin dependencies."""
 
-    def __init__(self, workdir: str, prefixdir: Optional[str], platform: str):
+    def __init__(self, workdir: str, prefixdir: Optional[str], platform: str, nproc: int = 1):
         """
         Initialize dependency builder.
 
@@ -35,11 +35,15 @@ class DependencyBuilder:
             workdir: Working directory for builds
             prefixdir: Installation prefix directory
             platform: Target platform
+            nproc: Number of parallel jobs
         """
         self.workdir = Path(workdir)
         self.prefixdir = prefixdir
         self.platform = platform
+        self.nproc = nproc
         self.env = EnvironmentManager.get_default_env(platform, str(workdir), prefixdir)
+        # Add NPROC to environment
+        self.env['NPROC'] = str(nproc)
 
     def build_dependency(
         self,
@@ -175,7 +179,8 @@ class PluginBuilder:
         platform: str,
         workdir: str,
         prefixdir: Optional[str] = None,
-        plugins_dir: str = 'plugins'
+        plugins_dir: str = 'plugins',
+        nproc: int = 1
     ):
         """
         Initialize plugin builder.
@@ -187,6 +192,7 @@ class PluginBuilder:
             workdir: Working directory
             prefixdir: Installation prefix directory
             plugins_dir: Directory containing plugin configs
+            nproc: Number of parallel jobs
         """
         self.plugin_name = plugin_name
         self.version = version
@@ -194,10 +200,13 @@ class PluginBuilder:
         self.workdir = Path(workdir)
         self.prefixdir = prefixdir
         self.plugins_dir = plugins_dir
+        self.nproc = nproc
 
         self.workdir.mkdir(parents=True, exist_ok=True)
 
         self.env = EnvironmentManager.get_default_env(platform, str(workdir), prefixdir)
+        # Add NPROC to environment
+        self.env['NPROC'] = str(nproc)
 
         # Load plugin configuration
         self.config = YAMLLoader.load_plugin_config(plugin_name, plugins_dir)
@@ -261,7 +270,7 @@ class PluginBuilder:
         full_deps_config = self.config.get('dependencies', {})
 
         # Build each dependency
-        dep_builder = DependencyBuilder(str(self.workdir), self.prefixdir, self.platform)
+        dep_builder = DependencyBuilder(str(self.workdir), self.prefixdir, self.platform, self.nproc)
         for dep in dep_list:
             dep_name = dep['name']
             dep_version = dep['version']
@@ -326,7 +335,7 @@ class PluginBuilder:
             raise ValueError(f"No build configuration for platform {self.platform}")
 
         # Execute build commands
-        dep_builder = DependencyBuilder(str(self.workdir), self.prefixdir, self.platform)
+        dep_builder = DependencyBuilder(str(self.workdir), self.prefixdir, self.platform, self.nproc)
         dep_builder.env = self.env  # Use same environment
         dep_builder._execute_build(build_config)
 
@@ -366,8 +375,16 @@ def main():
     parser.add_argument('--workdir', required=True, help='Working directory')
     parser.add_argument('--prefixdir', help='Installation prefix directory')
     parser.add_argument('--plugins-dir', default='plugins', help='Plugins directory')
+    parser.add_argument('--nproc', type=int, help='Number of parallel jobs (default: CPU count)')
 
     args = parser.parse_args()
+
+    # Determine number of parallel jobs
+    if args.nproc:
+        nproc = args.nproc
+    else:
+        # Default to CPU count
+        nproc = os.cpu_count() or 1
 
     try:
         builder = PluginBuilder(
@@ -376,7 +393,8 @@ def main():
             platform=args.platform,
             workdir=args.workdir,
             prefixdir=args.prefixdir,
-            plugins_dir=args.plugins_dir
+            plugins_dir=args.plugins_dir,
+            nproc=nproc
         )
 
         artifacts = builder.build()

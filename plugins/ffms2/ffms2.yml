@@ -37,7 +37,7 @@ releases:
             cmd: tar xf {DL_FILE_NAME}
           - cwd: "{WORKDIR}/ffms2-5.0"
             cmd: ./configure --prefix={PREFIXDIR}
-          - cmd: make -j$(nproc)
+          - cmd: make -j{NPROC}
           - cmd: make install
       linux-.*:
         env:
@@ -49,7 +49,7 @@ releases:
             cmd: tar xf {DL_FILE_NAME}
           - cwd: "{WORKDIR}/ffms2-5.0"
             cmd: ./configure --prefix={PREFIXDIR}
-          - cmd: make -j$(nproc)
+          - cmd: make -j{NPROC}
           - cmd: make install
     artifacts:
       windows-x86:
@@ -79,7 +79,7 @@ dependencies:
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/zlib-1.3.1"
                 cmd: ./configure --static --prefix={PREFIXDIR}
-              - cmd: make -j$(nproc)
+              - cmd: make -j{NPROC}
               - cmd: make install
   dav1d:
     repository: https://code.videolan.org/videolan/dav1d.git
@@ -119,7 +119,7 @@ dependencies:
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/ffmpeg-6.1.3"
                 cmd: ./configure --prefix={PREFIXDIR} --enable-static --disable-shared --enable-pic --disable-encoders --enable-libdav1d
-              - cmd: make -j$(nproc)
+              - cmd: make -j{NPROC}
               - cmd: make install
 tests:
   - name: av1-test
