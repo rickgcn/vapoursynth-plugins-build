@@ -31,7 +31,6 @@ jobs:
       - name: Build crosstool-NG
         run: |
           cd crosstool-ng-1.28.0
-          ./bootstrap
           ./configure --prefix=/usr/local
           make -j$(nproc)
           sudo make install
@@ -45,7 +44,9 @@ jobs:
       - name: Build musl toolchain
         run: |
           cd $HOME/build-musl
-          ct-ng build
+          echo "Starting musl toolchain build..."
+          ct-ng build 2>&1 | tee $HOME/musl-build.log
+          echo "Musl toolchain build completed"
 
       - name: Create symlinks for toolchain executables
         run: |
@@ -89,6 +90,7 @@ jobs:
           path: |
             ~/x-tools/x86_64-linux-musl-toolchain.tar.gz
             ~/x-tools/toolchain-info.txt
+            ~/musl-build.log
           retention-days: 90
 
   build-glibc-toolchain:
@@ -113,7 +115,6 @@ jobs:
       - name: Build crosstool-NG
         run: |
           cd crosstool-ng-1.28.0
-          ./bootstrap
           ./configure --prefix=/usr/local
           make -j$(nproc)
           sudo make install
@@ -127,7 +128,9 @@ jobs:
       - name: Build glibc toolchain
         run: |
           cd $HOME/build-glibc
-          ct-ng build
+          echo "Starting glibc toolchain build..."
+          ct-ng build 2>&1 | tee $HOME/glibc-build.log
+          echo "Glibc toolchain build completed"
 
       - name: Create symlinks for toolchain executables
         run: |
@@ -171,6 +174,7 @@ jobs:
           path: |
             ~/x-tools/x86_64-linux-glibc-toolchain.tar.gz
             ~/x-tools/toolchain-info.txt
+            ~/glibc-build.log
           retention-days: 90
 
   create-release:
