@@ -1,0 +1,320 @@
+name: Build VapourSynth
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'VapourSynth version to build (e.g., R70)'
+        required: false
+        default: 'R70'
+      platforms:
+        description: 'Platforms to build (space-separated: linux-musl linux-glibc macos windows, or leave empty for all)'
+        required: false
+        default: 'linux-musl linux-glibc macos windows'
+
+jobs:
+  build-linux:
+    name: Build VapourSynth - Linux ${{ matrix.libc }}
+    runs-on: ubuntu-latest
+    if: contains(github.event.inputs.platforms, 'linux') || github.event.inputs.platforms == ''
+    strategy:
+      fail-fast: false
+      matrix:
+        libc: [musl, glibc]
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            python3-dev \
+            python3-pip \
+            cython3 \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            nasm \
+            git
+
+      - name: Download VapourSynth
+        run: |
+          git clone https://github.com/vapoursynth/vapoursynth.git
+          cd vapoursynth
+          git checkout ${{ github.event.inputs.version }}
+
+      - name: Build VapourSynth (musl - static)
+        if: matrix.libc == 'musl'
+        run: |
+          cd vapoursynth
+
+          # Configure for static musl build
+          ./autogen.sh
+          ./configure \
+            --prefix=/usr/local \
+            --enable-static \
+            --disable-shared \
+            CFLAGS="-O3 -fPIC -static" \
+            CXXFLAGS="-O3 -fPIC -static"
+
+          make -j$(nproc)
+          make install DESTDIR=$HOME/vapoursynth-install
+
+      - name: Build VapourSynth (glibc)
+        if: matrix.libc == 'glibc'
+        run: |
+          cd vapoursynth
+
+          # Configure for dynamic glibc build
+          ./autogen.sh
+          ./configure \
+            --prefix=/usr/local \
+            CFLAGS="-O3 -fPIC" \
+            CXXFLAGS="-O3 -fPIC"
+
+          make -j$(nproc)
+          make install DESTDIR=$HOME/vapoursynth-install
+
+      - name: Package VapourSynth
+        run: |
+          cd $HOME/vapoursynth-install
+          tar czf vapoursynth-${{ github.event.inputs.version }}-linux-${{ matrix.libc }}.tar.gz usr/
+
+          # Generate metadata
+          cat > vapoursynth-info.txt <<EOF
+          VapourSynth Version: ${{ github.event.inputs.version }}
+          Platform: Linux x86_64
+          C Library: ${{ matrix.libc }}
+          Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Commit: ${{ github.sha }}
+          EOF
+
+          ls -lh vapoursynth-*.tar.gz
+
+      - name: Upload VapourSynth artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vapoursynth-${{ github.event.inputs.version }}-linux-${{ matrix.libc }}
+          path: |
+            ~/vapoursynth-install/vapoursynth-*.tar.gz
+            ~/vapoursynth-install/vapoursynth-info.txt
+          retention-days: 90
+
+  build-macos:
+    name: Build VapourSynth - macOS
+    runs-on: macos-latest
+    if: contains(github.event.inputs.platforms, 'macos') || github.event.inputs.platforms == ''
+    steps:
+      - name: Install build dependencies
+        run: |
+          brew install \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            nasm \
+            python@3.11
+
+      - name: Download VapourSynth
+        run: |
+          git clone https://github.com/vapoursynth/vapoursynth.git
+          cd vapoursynth
+          git checkout ${{ github.event.inputs.version }}
+
+      - name: Build VapourSynth
+        run: |
+          cd vapoursynth
+
+          ./autogen.sh
+          ./configure \
+            --prefix=/usr/local \
+            CFLAGS="-O3 -fPIC" \
+            CXXFLAGS="-O3 -fPIC"
+
+          make -j$(sysctl -n hw.ncpu)
+          make install DESTDIR=$HOME/vapoursynth-install
+
+      - name: Package VapourSynth
+        run: |
+          cd $HOME/vapoursynth-install
+          tar czf vapoursynth-${{ github.event.inputs.version }}-macos.tar.gz usr/
+
+          # Generate metadata
+          cat > vapoursynth-info.txt <<EOF
+          VapourSynth Version: ${{ github.event.inputs.version }}
+          Platform: macOS $(uname -m)
+          Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Commit: ${{ github.sha }}
+          EOF
+
+          ls -lh vapoursynth-*.tar.gz
+
+      - name: Upload VapourSynth artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vapoursynth-${{ github.event.inputs.version }}-macos
+          path: |
+            ~/vapoursynth-install/vapoursynth-*.tar.gz
+            ~/vapoursynth-install/vapoursynth-info.txt
+          retention-days: 90
+
+  build-windows:
+    name: Build VapourSynth - Windows
+    runs-on: windows-latest
+    if: contains(github.event.inputs.platforms, 'windows') || github.event.inputs.platforms == ''
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Cython
+        run: |
+          pip install cython
+
+      - name: Download VapourSynth
+        run: |
+          git clone https://github.com/vapoursynth/vapoursynth.git
+          cd vapoursynth
+          git checkout ${{ github.event.inputs.version }}
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build VapourSynth
+        shell: cmd
+        run: |
+          cd vapoursynth\msvc_project
+          msbuild VapourSynth.sln /p:Configuration=Release /p:Platform=x64 /m
+
+      - name: Package VapourSynth
+        shell: bash
+        run: |
+          mkdir -p vapoursynth-install
+          cp -r vapoursynth/msvc_project/x64/Release/* vapoursynth-install/
+
+          cd vapoursynth-install
+          7z a vapoursynth-${{ github.event.inputs.version }}-windows-x64.7z *
+
+          # Generate metadata
+          cat > vapoursynth-info.txt <<EOF
+          VapourSynth Version: ${{ github.event.inputs.version }}
+          Platform: Windows x64
+          Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Commit: ${{ github.sha }}
+          EOF
+
+          ls -lh vapoursynth-*.7z
+
+      - name: Upload VapourSynth artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vapoursynth-${{ github.event.inputs.version }}-windows
+          path: |
+            vapoursynth-install/vapoursynth-*.7z
+            vapoursynth-install/vapoursynth-info.txt
+          retention-days: 90
+
+  create-release:
+    name: Create VapourSynth Release
+    needs: [build-linux, build-macos, build-windows]
+    if: always() && (needs.build-linux.result == 'success' || needs.build-macos.result == 'success' || needs.build-windows.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all VapourSynth artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: vapoursynth-builds
+
+      - name: Create release tag
+        id: tag
+        run: |
+          TAG_NAME="vapoursynth-${{ github.event.inputs.version }}"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Check if release exists
+        id: check-release
+        run: |
+          if git ls-remote --tags origin | grep -q "refs/tags/${{ steps.tag.outputs.tag_name }}$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare release files
+        if: steps.check-release.outputs.exists == 'false'
+        run: |
+          mkdir -p release-files
+
+          # Copy all archives
+          find vapoursynth-builds -name "*.tar.gz" -exec cp {} release-files/ \;
+          find vapoursynth-builds -name "*.7z" -exec cp {} release-files/ \;
+
+          # Create README
+          cat > release-files/README.md <<'EOF'
+          # VapourSynth ${{ github.event.inputs.version }}
+
+          Pre-built VapourSynth binaries for testing plugins.
+
+          ## Available Builds
+
+          EOF
+
+          find vapoursynth-builds -name "vapoursynth-info.txt" -exec cat {} \; >> release-files/README.md
+
+          cat >> release-files/README.md <<'EOF'
+
+          ## Installation
+
+          ### Linux
+          ```bash
+          tar xzf vapoursynth-*.tar.gz -C /
+          # Or extract to custom location:
+          tar xzf vapoursynth-*.tar.gz -C $HOME/vapoursynth
+          export PATH="$HOME/vapoursynth/usr/local/bin:$PATH"
+          export LD_LIBRARY_PATH="$HOME/vapoursynth/usr/local/lib:$LD_LIBRARY_PATH"
+          ```
+
+          ### macOS
+          ```bash
+          sudo tar xzf vapoursynth-*.tar.gz -C /
+          ```
+
+          ### Windows
+          ```powershell
+          7z x vapoursynth-*.7z -o"C:\VapourSynth"
+          # Add C:\VapourSynth to PATH
+          ```
+
+          ## Usage
+
+          Test VapourSynth installation:
+          ```bash
+          vspipe --version
+          python3 -c "import vapoursynth; print(vapoursynth.core.version())"
+          ```
+          EOF
+
+          ls -lh release-files/
+
+      - name: Create GitHub Release
+        if: steps.check-release.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: VapourSynth ${{ github.event.inputs.version }}
+          body_path: release-files/README.md
+          draft: false
+          prerelease: false
+          files: |
+            release-files/*.tar.gz
+            release-files/*.7z
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release already exists
+        if: steps.check-release.outputs.exists == 'true'
+        run: |
+          echo "::notice::Release ${{ steps.tag.outputs.tag_name }} already exists, skipping creation"
