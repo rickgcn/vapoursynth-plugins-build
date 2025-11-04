@@ -126,16 +126,20 @@ jobs:
           EOF
           cat toolchain-info.txt >> release-body.md
 
+          # Copy files to workspace for release action
+          cp release-body.md $GITHUB_WORKSPACE/
+          cp x86_64-linux-musl-toolchain.tar.gz $GITHUB_WORKSPACE/
+
       - name: Create GitHub Release
         if: steps.check-release.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.check-release.outputs.tag_name }}
           name: ${{ steps.check-release.outputs.tag_name }}
-          body_path: ~/x-tools/release-body.md
+          body_path: release-body.md
           draft: false
           prerelease: false
-          files: ~/x-tools/x86_64-linux-musl-toolchain.tar.gz
+          files: x86_64-linux-musl-toolchain.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -256,15 +260,19 @@ jobs:
           EOF
           cat toolchain-info.txt >> release-body.md
 
+          # Copy files to workspace for release action
+          cp release-body.md $GITHUB_WORKSPACE/
+          cp x86_64-linux-glibc-toolchain.tar.gz $GITHUB_WORKSPACE/
+
       - name: Create GitHub Release
         if: steps.check-release.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.check-release.outputs.tag_name }}
           name: ${{ steps.check-release.outputs.tag_name }}
-          body_path: ~/x-tools/release-body.md
+          body_path: release-body.md
           draft: false
           prerelease: false
-          files: ~/x-tools/x86_64-linux-glibc-toolchain.tar.gz
+          files: x86_64-linux-glibc-toolchain.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
