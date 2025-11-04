@@ -114,48 +114,13 @@ jobs:
 
           # Create README
           cat > release-files/README.md <<'EOF'
-          # VapourSynth ${{ github.event.inputs.version }}
-
-          Pre-built VapourSynth binaries for Linux (glibc, dynamic linking).
+          This VapourSynth build is intended for building VapourSynth plugins in this repository.
 
           ## Build Information
 
           EOF
 
           find vapoursynth-builds -name "vapoursynth-info.txt" -exec cat {} \; >> release-files/README.md
-
-          cat >> release-files/README.md <<'EOF'
-
-          ## Installation
-
-          ### Extract to system
-          ```bash
-          sudo tar xzf vapoursynth-*-linux-glibc.tar.gz -C /usr/local
-          sudo ldconfig
-          ```
-
-          ### Extract to custom location
-          ```bash
-          mkdir -p $HOME/vapoursynth
-          tar xzf vapoursynth-*-linux-glibc.tar.gz -C $HOME/vapoursynth
-          export PATH="$HOME/vapoursynth/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/vapoursynth/lib:$LD_LIBRARY_PATH"
-          export PYTHONPATH="$HOME/vapoursynth/lib/python3/site-packages:$PYTHONPATH"
-          ```
-
-          ## Usage
-
-          Test VapourSynth installation:
-          ```bash
-          vspipe --version
-          python3 -c "import vapoursynth; print(vapoursynth.core.version())"
-          ```
-
-          ## Notes
-
-          This is a dynamically linked glibc build. For cross-compilation to older systems,
-          use the provided crosstool-NG toolchains (glibc 2.17, kernel 3.2.101+).
-          EOF
 
           ls -lh release-files/
 
