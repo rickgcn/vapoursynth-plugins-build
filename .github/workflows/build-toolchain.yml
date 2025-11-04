@@ -14,35 +14,24 @@ jobs:
     runs-on: ubuntu-latest
     if: contains(github.event.inputs.toolchains, 'musl') || github.event.inputs.toolchains == ''
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            autoconf \
-            automake \
-            bison \
-            flex \
-            gawk \
-            help2man \
-            libncurses5-dev \
-            libtool-bin \
-            texinfo \
-            unzip \
-            wget \
-            xz-utils
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential autoconf automake libtool libtool-bin bison flex gawk help2man libncurses5-dev texinfo unzip wget xz-utils
+          version: 1.0
 
       - name: Download crosstool-NG
         run: |
-          git clone https://github.com/crosstool-ng/crosstool-ng.git
-          cd crosstool-ng
-          git checkout crosstool-ng-1.26.0
+          wget http://crosstool-ng.org/download/crosstool-ng/crosstool-ng-1.28.0.tar.xz
+          tar xf crosstool-ng-1.28.0.tar.xz
 
       - name: Build crosstool-NG
         run: |
           cd crosstool-ng
-          ./bootstrap
-          ./configure --prefix=$HOME/ct-ng
+          ./configure --prefix=/usr/local
           make -j$(nproc)
           make install
 
@@ -50,26 +39,12 @@ jobs:
         run: |
           mkdir -p $HOME/build-musl
           cd $HOME/build-musl
-
-          # Use sample config as base
-          $HOME/ct-ng/bin/ct-ng x86_64-unknown-linux-musl
-
-          # Customize configuration
-          cat >> .config <<'EOF'
-          CT_PREFIX_DIR="$HOME/x-tools/${CT_TARGET}"
-          CT_LINUX_VERSION="3.2.101"
-          CT_EXPERIMENTAL=y
-          CT_ALLOW_BUILD_AS_ROOT=y
-          CT_ALLOW_BUILD_AS_ROOT_SURE=y
-          EOF
+          cp ${{ github.workspace }}/toolchains/linux-x86_64-musl.config ./.config
 
       - name: Build musl toolchain
         run: |
           cd $HOME/build-musl
-          $HOME/ct-ng/bin/ct-ng build
-        env:
-          CT_ALLOW_BUILD_AS_ROOT: y
-          CT_ALLOW_BUILD_AS_ROOT_SURE: y
+          ct-ng build
 
       - name: Package toolchain
         run: |
@@ -101,72 +76,42 @@ jobs:
     runs-on: ubuntu-latest
     if: contains(github.event.inputs.toolchains, 'glibc') || github.event.inputs.toolchains == ''
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            autoconf \
-            automake \
-            bison \
-            flex \
-            gawk \
-            help2man \
-            libncurses5-dev \
-            libtool-bin \
-            texinfo \
-            unzip \
-            wget \
-            xz-utils
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential autoconf automake libtool libtool-bin bison flex gawk help2man libncurses5-dev texinfo unzip wget xz-utils
+          version: 1.0
 
       - name: Download crosstool-NG
         run: |
-          git clone https://github.com/crosstool-ng/crosstool-ng.git
-          cd crosstool-ng
-          git checkout crosstool-ng-1.26.0
+          wget http://crosstool-ng.org/download/crosstool-ng/crosstool-ng-1.28.0.tar.xz
+          tar xf crosstool-ng-1.28.0.tar.xz
 
       - name: Build crosstool-NG
         run: |
           cd crosstool-ng
-          ./bootstrap
-          ./configure --prefix=$HOME/ct-ng
+          ./configure --prefix=/usr/local
           make -j$(nproc)
           make install
 
-      - name: Configure glibc 2.17 toolchain
+      - name: Configure glibc toolchain
         run: |
           mkdir -p $HOME/build-glibc
           cd $HOME/build-glibc
-
-          # Use sample config as base
-          $HOME/ct-ng/bin/ct-ng x86_64-unknown-linux-gnu
-
-          # Customize configuration for glibc 2.17
-          cat >> .config <<'EOF'
-          CT_PREFIX_DIR="$HOME/x-tools/${CT_TARGET}"
-          CT_GLIBC_V_2_17=y
-          CT_GLIBC_VERSION="2.17"
-          CT_LINUX_VERSION="3.2.101"
-          CT_EXPERIMENTAL=y
-          CT_ALLOW_BUILD_AS_ROOT=y
-          CT_ALLOW_BUILD_AS_ROOT_SURE=y
-          EOF
-
-          # Old config format compatibility
-          $HOME/ct-ng/bin/ct-ng oldconfig
+          cp ${{ github.workspace }}/toolchains/linux-x86_64-glibc.config ./.config
 
       - name: Build glibc toolchain
         run: |
           cd $HOME/build-glibc
-          $HOME/ct-ng/bin/ct-ng build
-        env:
-          CT_ALLOW_BUILD_AS_ROOT: y
-          CT_ALLOW_BUILD_AS_ROOT_SURE: y
+          ct-ng build
 
       - name: Package toolchain
         run: |
           cd $HOME/x-tools
-          tar czf x86_64-linux-glibc217-toolchain.tar.gz x86_64-unknown-linux-gnu/
+          tar czf x86_64-linux-glibc-toolchain.tar.gz x86_64-unknown-linux-gnu/
 
           # Generate metadata
           cat > toolchain-info.txt <<EOF
@@ -177,14 +122,14 @@ jobs:
           Commit: ${{ github.sha }}
           EOF
 
-          ls -lh x86_64-linux-glibc217-toolchain.tar.gz
+          ls -lh x86_64-linux-glibc-toolchain.tar.gz
 
       - name: Upload toolchain artifact
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-linux-glibc217-toolchain
+          name: x86_64-linux-glibc-toolchain
           path: |
-            ~/x-tools/x86_64-linux-glibc217-toolchain.tar.gz
+            ~/x-tools/x86_64-linux-glibc-toolchain.tar.gz
             ~/x-tools/toolchain-info.txt
           retention-days: 90
 
@@ -234,16 +179,12 @@ jobs:
           ```bash
           tar xzf x86_64-linux-musl-toolchain.tar.gz
           export PATH="$PWD/x86_64-unknown-linux-musl/bin:$PATH"
-          export CC=x86_64-unknown-linux-musl-gcc
-          export CXX=x86_64-unknown-linux-musl-g++
           ```
 
           ### glibc 2.17 toolchain
           ```bash
-          tar xzf x86_64-linux-glibc217-toolchain.tar.gz
+          tar xzf x86_64-linux-glibc-toolchain.tar.gz
           export PATH="$PWD/x86_64-unknown-linux-gnu/bin:$PATH"
-          export CC=x86_64-unknown-linux-gnu-gcc
-          export CXX=x86_64-unknown-linux-gnu-g++
           ```
 
           ## Compatibility

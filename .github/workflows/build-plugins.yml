@@ -93,6 +93,7 @@ jobs:
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: autoconf automake build-essential cmake libtool meson nasm ninja-build pkg-config yasm
+          version: 1.0
 
       # Platform-specific setup for macOS
       - name: Setup macOS build environment
