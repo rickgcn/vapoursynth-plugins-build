@@ -1,0 +1,46 @@
+FROM alpine:latest
+
+# Install build dependencies and Python 3
+RUN apk add --no-cache \
+    autoconf \
+    automake \
+    build-base \
+    cmake \
+    cython \
+    git \
+    libtool \
+    nasm \
+    pkgconfig \
+    python3 \
+    python3-dev
+
+# Build and install zimg
+WORKDIR /tmp/build
+RUN git clone https://github.com/sekrit-twc/zimg.git --depth 1 --branch release-3.0.6 && \
+    cd zimg && \
+    ./autogen.sh && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# Build and install VapourSynth R72
+RUN git clone https://github.com/vapoursynth/vapoursynth.git --depth 1 --branch R72 && \
+    cd vapoursynth && \
+    ./autogen.sh && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# Set environment variables
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages
+
+# Clean up build files
+RUN rm -rf /tmp/build
+
+# Verify installation
+RUN vspipe --version && \
+    python3 -c "import vapoursynth; print('VapourSynth version:', vapoursynth.core.version())"
+
+WORKDIR /workspace

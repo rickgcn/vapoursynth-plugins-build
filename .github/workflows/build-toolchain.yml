@@ -13,6 +13,8 @@ jobs:
     name: Build musl toolchain (x86_64)
     runs-on: ubuntu-24.04
     if: contains(github.event.inputs.toolchains, 'musl') || github.event.inputs.toolchains == ''
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,10 +103,48 @@ jobs:
             ~/x-tools/toolchain-info.txt
           retention-days: 90
 
+      - name: Check if release exists
+        id: check-release
+        run: |
+          TAG_NAME="x86_64-linux-musl-toolchain"
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create release body
+        if: steps.check-release.outputs.exists == 'false'
+        run: |
+          cd $HOME/x-tools
+          cat > release-body.md <<'EOF'
+          This toolchain is intended for building VapourSynth plugins in this repository.
+
+          ## Build Information
+
+          EOF
+          cat toolchain-info.txt >> release-body.md
+
+      - name: Create GitHub Release
+        if: steps.check-release.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.check-release.outputs.tag_name }}
+          name: ${{ steps.check-release.outputs.tag_name }}
+          body_path: ~/x-tools/release-body.md
+          draft: false
+          prerelease: false
+          files: ~/x-tools/x86_64-linux-musl-toolchain.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-glibc-toolchain:
     name: Build glibc 2.17 toolchain (x86_64)
     runs-on: ubuntu-24.04
     if: contains(github.event.inputs.toolchains, 'glibc') || github.event.inputs.toolchains == ''
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -193,52 +233,38 @@ jobs:
             ~/x-tools/toolchain-info.txt
           retention-days: 90
 
-  create-release:
-    name: Create Toolchain Release
-    needs: [build-musl-toolchain, build-glibc-toolchain]
-    if: always() && (needs.build-musl-toolchain.result == 'success' || needs.build-glibc-toolchain.result == 'success')
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Download all toolchain artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: toolchains
-
-      - name: Create release tag
-        id: tag
+      - name: Check if release exists
+        id: check-release
         run: |
-          TAG_NAME="toolchains-$(date +%Y%m%d-%H%M%S)"
+          TAG_NAME="x86_64-linux-glibc-toolchain"
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
-      - name: Prepare release files
+      - name: Create release body
+        if: steps.check-release.outputs.exists == 'false'
         run: |
-          mkdir -p release-files
-
-          # Copy all tarballs
-          find toolchains -name "*.tar.gz" -exec cp {} release-files/ \;
-
-          # Combine info files
-          cat > release-files/README.md <<'EOF'
-          These toolchains are intended for building VapourSynth plugins in this repository.
+          cd $HOME/x-tools
+          cat > release-body.md <<'EOF'
+          This toolchain is intended for building VapourSynth plugins in this repository.
 
           ## Build Information
 
           EOF
-
-          find toolchains -name "toolchain-info.txt" -exec cat {} \; >> release-files/README.md
-
-          ls -lh release-files/
+          cat toolchain-info.txt >> release-body.md
 
       - name: Create GitHub Release
+        if: steps.check-release.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.tag.outputs.tag_name }}
-          name: Toolchains ${{ steps.tag.outputs.tag_name }}
-          body_path: release-files/README.md
+          tag_name: ${{ steps.check-release.outputs.tag_name }}
+          name: ${{ steps.check-release.outputs.tag_name }}
+          body_path: ~/x-tools/release-body.md
           draft: false
           prerelease: false
-          files: release-files/*.tar.gz
+          files: ~/x-tools/x86_64-linux-glibc-toolchain.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
