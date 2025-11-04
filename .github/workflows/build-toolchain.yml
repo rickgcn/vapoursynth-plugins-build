@@ -41,16 +41,23 @@ jobs:
           cd $HOME/build-musl
           cp ${{ github.workspace }}/toolchains/linux-x86_64-musl.config ./.config
 
+      - name: Cache musl toolchain
+        id: cache-musl
+        uses: actions/cache@v4
+        with:
+          path: ~/x-tools/x86_64-unknown-linux-musl
+          key: musl-toolchain-${{ hashFiles('toolchains/linux-x86_64-musl.config') }}
+
       - name: Build musl toolchain
+        if: steps.cache-musl.outputs.cache-hit != 'true'
         run: |
           cd $HOME/build-musl
-          echo "Starting musl toolchain build..."
-          ct-ng build 2>&1 | tee $HOME/musl-build.log
-          echo "Musl toolchain build completed"
+          ct-ng build
 
       - name: Create symlinks for toolchain executables
         run: |
           cd $HOME/x-tools/x86_64-unknown-linux-musl/bin
+          ls -la
 
           # Create symlinks without the target prefix
           for file in x86_64-unknown-linux-musl-*; do
@@ -90,7 +97,6 @@ jobs:
           path: |
             ~/x-tools/x86_64-linux-musl-toolchain.tar.gz
             ~/x-tools/toolchain-info.txt
-            ~/musl-build.log
           retention-days: 90
 
   build-glibc-toolchain:
@@ -125,12 +131,18 @@ jobs:
           cd $HOME/build-glibc
           cp ${{ github.workspace }}/toolchains/linux-x86_64-glibc.config ./.config
 
+      - name: Cache glibc toolchain
+        id: cache-glibc
+        uses: actions/cache@v4
+        with:
+          path: ~/x-tools/x86_64-unknown-linux-gnu
+          key: glibc-toolchain-${{ hashFiles('toolchains/linux-x86_64-glibc.config') }}
+
       - name: Build glibc toolchain
+        if: steps.cache-glibc.outputs.cache-hit != 'true'
         run: |
           cd $HOME/build-glibc
-          echo "Starting glibc toolchain build..."
-          ct-ng build 2>&1 | tee $HOME/glibc-build.log
-          echo "Glibc toolchain build completed"
+          ct-ng build
 
       - name: Create symlinks for toolchain executables
         run: |
@@ -174,7 +186,6 @@ jobs:
           path: |
             ~/x-tools/x86_64-linux-glibc-toolchain.tar.gz
             ~/x-tools/toolchain-info.txt
-            ~/glibc-build.log
           retention-days: 90
 
   create-release:
