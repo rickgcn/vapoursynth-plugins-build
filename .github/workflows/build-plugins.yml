@@ -391,9 +391,9 @@ jobs:
           # Extract repository owner from GITHUB_REPOSITORY
           REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
           # Determine which image to use based on platform
-          if [[ "${{ matrix.platform }}" == "linux-glibc" ]]; then
+          if [[ "${{ matrix.platform }}" == *glibc* ]]; then
             IMAGE_TAG="R72-centos7"
-          elif [[ "${{ matrix.platform }}" == "linux-musl" ]]; then
+          elif [[ "${{ matrix.platform }}" == *musl* ]]; then
             IMAGE_TAG="R72-alpine"
           fi
           echo "Using image: ghcr.io/${REPO_OWNER}/vapoursynth-tester:${IMAGE_TAG}"
