@@ -1,0 +1,57 @@
+# Shared dependencies for VapourSynth plugins
+# This file contains common dependencies that can be used by multiple plugins
+
+dependencies:
+  zlib:
+    repository: https://github.com/madler/zlib.git
+    license: MIT
+    versions:
+      "1.3.1":
+        type: tarball
+        source: https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
+        hash: sha256sum:9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
+        build:
+          "(linux|darwin)-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/zlib-1.3.1"
+                cmd: ./configure --static --prefix={PREFIXDIR}
+              - cmd: make -j{NPROC}
+              - cmd: sudo make install
+
+  dav1d:
+    repository: https://code.videolan.org/videolan/dav1d.git
+    license: BSD-2-Clause
+    versions:
+      "1.5.2":
+        type: tarball
+        source: https://code.videolan.org/videolan/dav1d/-/archive/1.5.2/dav1d-1.5.2.tar.gz
+        hash: sha256sum:2fc0810b4cdf72784b3c107827ff10b1d83ec709a1ec1fbdbc6a932daf65ead6
+        build:
+          "(linux|darwin)-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/dav1d-1.5.2"
+                cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --default-library=static
+              - cmd: ninja -C build
+              - cmd: sudo ninja -C build install
+
+  ffmpeg:
+    repository: https://git.ffmpeg.org/ffmpeg.git
+    license: LGPL-2.1-or-later
+    versions:
+      "6.1.3":
+        type: tarball
+        source: https://ffmpeg.org/releases/ffmpeg-6.1.3.tar.gz
+        hash: sha256sum:3be466dfd1a312d752c20ece5b413248a5808fba3c967da0624bac48a4380857
+        build:
+          "(linux|darwin)-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/ffmpeg-6.1.3"
+                cmd: ./configure --prefix={PREFIXDIR} --enable-static --disable-shared --enable-pic --disable-encoders --enable-libdav1d
+              - cmd: make -j{NPROC}
+              - cmd: sudo make install
