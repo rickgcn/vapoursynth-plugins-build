@@ -236,6 +236,14 @@ jobs:
       - name: Setup macOS build environment
         if: runner.os == 'macOS'
         run: |
+          # Determine Homebrew prefix based on architecture
+          if [[ "${{ matrix.platform }}" == "darwin-aarch64" ]]; then
+            HOMEBREW_PREFIX="/opt/homebrew"
+          else
+            HOMEBREW_PREFIX="/usr/local"
+          fi
+          echo "Homebrew prefix: $HOMEBREW_PREFIX"
+
           brew install \
             autoconf \
             automake \
@@ -248,8 +256,8 @@ jobs:
             cmake
 
           # Fix libtool conflict: create symlinks for GNU libtool tools
-          ln -sf /opt/homebrew/bin/glibtool /opt/homebrew/bin/libtool
-          ln -sf /opt/homebrew/bin/glibtoolize /opt/homebrew/bin/libtoolize
+          ln -sf "$HOMEBREW_PREFIX/bin/glibtool" "$HOMEBREW_PREFIX/bin/libtool"
+          ln -sf "$HOMEBREW_PREFIX/bin/glibtoolize" "$HOMEBREW_PREFIX/bin/libtoolize"
 
       # Determine PREFIXDIR based on platform
       - name: Set environment variables
