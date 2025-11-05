@@ -2,6 +2,25 @@
 # This file contains common dependencies that can be used by multiple plugins
 
 dependencies:
+  zimg:
+    repository: https://github.com/sekrit-twc/zimg.git
+    license: WTFPL
+    versions:
+      "3.0.6":
+        type: tarball
+        source: https://github.com/sekrit-twc/zimg/archive/refs/tags/release-3.0.6.tar.gz
+        hash: sha256sum:be89390f13a5c9b2388ce0f44a5e89364a20c1c57ce46d382b1fcc3967057577
+        build:
+          "(linux|darwin)-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/zimg-release-3.0.6"
+                cmd: ./autogen.sh
+              - cwd: ./configure --prefix={PREFIXDIR}
+              - cwd: make -j${NPROC}
+              - cwd: sudo make install
+
   vapoursynth:
     repository: https://github.com/vapoursynth/vapoursynth.git
     license: LGPL-2.1
@@ -10,6 +29,10 @@ dependencies:
         type: tarball
         source: https://github.com/vapoursynth/vapoursynth/archive/refs/tags/R72.tar.gz
         hash: sha256sum:650f77feebfd08842b521273f59e0c88f7ba9d7cb5f151d89b79b8dfdd4ce633
+        dependencies:
+          "(linux|darwin)-.*":
+            - name: zimg
+              version: "3.0.6"
         build:
           "(linux|darwin)-.*":
             commands:
@@ -18,8 +41,9 @@ dependencies:
               - cwd: "{WORKDIR}/vapoursynth-R72"
                 cmd: ./autogen.sh
               - cmd: ./configure --prefix={PREFIXDIR} --disable-x86-asm --disable-vsscript --disable-vspipe --disable-python-module
-              - cmd: make -j$(nproc)
+              - cmd: make -j${NPROC}
               - cmd: sudo make install
+
   xxHash:
     repository: https://github.com/Cyan4973/xxHash.git
     license: BSD-2-Clause
@@ -113,6 +137,10 @@ dependencies:
         type: tarball
         source: https://ffmpeg.org/releases/ffmpeg-7.1.2.tar.gz
         hash: sha256sum:eea81393e530fdd5cf55ac12820f057d20fa681ae61864c46bb3831091d3d8e1
+        dependencies:
+          "(linux|darwin)-.*":
+            - name: Little-CMS
+              version: "2.17"
         build:
           "(linux|darwin)-.*":
             commands:

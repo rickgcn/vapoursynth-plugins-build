@@ -376,8 +376,8 @@ jobs:
   # Job 4: Test plugins using matrix
   test:
     name: Test ${{ matrix.plugin }} - ${{ matrix.test_name }} (${{ matrix.platform }})
-    needs: generate-test-matrix
-    if: ${{ needs.generate-test-matrix.outputs.has-tests }}
+    needs: [build, generate-test-matrix]
+    if: needs.generate-test-matrix.outputs.has-tests == 'true' && needs.build.result == 'success'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

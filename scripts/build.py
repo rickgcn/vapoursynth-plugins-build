@@ -34,7 +34,8 @@ class DependencyBuilder:
         prefixdir: Optional[str],
         platform: str,
         nproc: int = 1,
-        parent_config: Optional[Dict[str, Any]] = None
+        parent_config: Optional[Dict[str, Any]] = None,
+        building_deps: Optional[set] = None
     ):
         """
         Initialize dependency builder.
@@ -45,11 +46,17 @@ class DependencyBuilder:
             platform: Target platform
             nproc: Number of parallel jobs
             parent_config: Parent plugin configuration (for global env)
+            building_deps: Set of dependencies currently being built (for cycle detection)
         """
         self.workdir = Path(workdir)
         self.prefixdir = prefixdir
         self.platform = platform
         self.nproc = nproc
+        self.parent_config = parent_config
+        self.plugins_dir = str(Path(__file__).parent.parent / 'plugins')  # Get plugins directory path
+        # Use provided building_deps or create new set
+        self.building_deps = building_deps if building_deps is not None else set()
+
         self.env = EnvironmentManager.get_default_env(platform, str(workdir), prefixdir)
         # Add NPROC to environment
         self.env['NPROC'] = str(nproc)
@@ -58,6 +65,59 @@ class DependencyBuilder:
         if parent_config and 'env' in parent_config:
             global_env = EnvironmentManager.merge_global_env(parent_config['env'], platform)
             self.env.update(global_env)
+
+    def _build_sub_dependencies(self, version_config: Dict[str, Any]) -> None:
+        """
+        Build sub-dependencies of a dependency.
+
+        Args:
+            version_config: Version configuration dict
+        """
+        sub_deps_config = version_config.get('dependencies', {})
+        if not sub_deps_config:
+            print("No sub-dependencies to build")
+            return
+
+        # Get sub-dependencies for this platform
+        sub_dep_list = BuildConfigResolver.get_dependencies(sub_deps_config, self.platform)
+        if not sub_dep_list:
+            print(f"No sub-dependencies for platform {self.platform}")
+            return
+
+        print(f"\nBuilding {len(sub_dep_list)} sub-dependencies...\n")
+
+        # Load full dependency configurations
+        sub_deps_file_path = Path(self.plugins_dir) / 'dependencies.yml'
+        full_sub_deps_config = {}
+        if sub_deps_file_path.exists():
+            with open(sub_deps_file_path, 'r', encoding='utf-8') as f:
+                deps_data = yaml.safe_load(f)
+                full_sub_deps_config = deps_data.get('dependencies', {})
+
+        # Build each sub-dependency
+        for sub_dep in sub_dep_list:
+            sub_dep_name = sub_dep['name']
+            sub_dep_version = sub_dep['version']
+
+            if sub_dep_name not in full_sub_deps_config:
+                print(f"Warning: Sub-dependency {sub_dep_name} not found in dependencies.yml, skipping...")
+                continue
+
+            # Create a new DependencyBuilder for the sub-dependency
+            sub_dep_builder = DependencyBuilder(
+                str(self.workdir / sub_dep_name),
+                self.prefixdir,
+                self.platform,
+                self.nproc,
+                parent_config=self.parent_config,
+                building_deps=self.building_deps  # Pass the same set for cycle detection
+            )
+
+            sub_dep_builder.build_dependency(
+                sub_dep_name,
+                sub_dep_version,
+                full_sub_deps_config[sub_dep_name]
+            )
 
     def build_dependency(
         self,
@@ -73,66 +133,88 @@ class DependencyBuilder:
             dep_version: Version to build
             dep_config: Dependency configuration from YAML
         """
+        # Create dependency key for cycle detection
+        dep_key = f"{dep_name}@{dep_version}"
+
+        # Check for circular dependency
+        if dep_key in self.building_deps:
+            dependency_chain = " -> ".join(self.building_deps) + f" -> {dep_key}"
+            raise ValueError(
+                f"Circular dependency detected!\nDependency chain: {dependency_chain}\n"
+                f"Dependency {dep_name} is already being built."
+            )
+
         print(f"\n{'='*60}")
         print(f"Building dependency: {dep_name} {dep_version}")
         print(f"{'='*60}\n")
 
-        # Get version-specific config
-        version_config = dep_config['versions'].get(dep_version)
-        if not version_config:
-            raise ValueError(f"Version {dep_version} not found for dependency {dep_name}")
+        # Mark this dependency as being built
+        self.building_deps.add(dep_key)
 
-        # Download source
-        source_type = version_config['type']
-        source_url = version_config['source']
+        try:
+            # Get version-specific config
+            version_config = dep_config['versions'].get(dep_version)
+            if not version_config:
+                raise ValueError(f"Version {dep_version} not found for dependency {dep_name}")
 
-        if source_type == 'tarball':
-            filename = source_url.split('/')[-1]
-            dest_path = self.workdir / filename
+            # Build sub-dependencies first (if any)
+            self._build_sub_dependencies(version_config)
 
-            if not dest_path.exists():
-                FileDownloader.download_file(source_url, str(dest_path))
+            # Download source
+            source_type = version_config['type']
+            source_url = version_config['source']
 
-            # Verify hash if provided
-            if 'hash' in version_config:
-                print(f"Verifying hash for {filename}...")
-                if not FileDownloader.verify_hash(str(dest_path), version_config['hash']):
-                    raise ValueError(f"Hash verification failed for {filename}")
-                print("Hash verification passed")
+            if source_type == 'tarball':
+                filename = source_url.split('/')[-1]
+                dest_path = self.workdir / filename
 
-            # Add DL_FILE_NAME to environment
-            self.env['DL_FILE_NAME'] = filename
+                if not dest_path.exists():
+                    FileDownloader.download_file(source_url, str(dest_path))
 
-        elif source_type == 'git':
-            # Clone git repository
-            repo_dir = self.workdir / dep_name
-            if not repo_dir.exists():
-                print(f"Cloning {source_url}...")
-                subprocess.run(
-                    ['git', 'clone', source_url, str(repo_dir)],
-                    check=True
-                )
-                if 'tag' in version_config:
+                # Verify hash if provided
+                if 'hash' in version_config:
+                    print(f"Verifying hash for {filename}...")
+                    if not FileDownloader.verify_hash(str(dest_path), version_config['hash']):
+                        raise ValueError(f"Hash verification failed for {filename}")
+                    print("Hash verification passed")
+
+                # Add DL_FILE_NAME to environment
+                self.env['DL_FILE_NAME'] = filename
+
+            elif source_type == 'git':
+                # Clone git repository
+                repo_dir = self.workdir / dep_name
+                if not repo_dir.exists():
+                    print(f"Cloning {source_url}...")
                     subprocess.run(
-                        ['git', 'checkout', version_config['tag']],
-                        cwd=str(repo_dir),
+                        ['git', 'clone', source_url, str(repo_dir)],
                         check=True
                     )
-        else:
-            raise ValueError(f"Unknown source type: {source_type}")
+                    if 'tag' in version_config:
+                        subprocess.run(
+                            ['git', 'checkout', version_config['tag']],
+                            cwd=str(repo_dir),
+                            check=True
+                        )
+            else:
+                raise ValueError(f"Unknown source type: {source_type}")
 
-        # Get build configuration for this platform
-        build_config = BuildConfigResolver.get_build_config(
-            version_config['build'],
-            self.platform
-        )
+            # Get build configuration for this platform
+            build_config = BuildConfigResolver.get_build_config(
+                version_config['build'],
+                self.platform
+            )
 
-        if not build_config:
-            print(f"No build configuration for {self.platform}, skipping...")
-            return
+            if not build_config:
+                print(f"No build configuration for {self.platform}, skipping...")
+                return
 
-        # Execute build commands
-        self._execute_build(build_config)
+            # Execute build commands
+            self._execute_build(build_config)
+
+        finally:
+            # Remove from building_deps when done (regardless of success or failure)
+            self.building_deps.discard(dep_key)
 
     def _execute_build(self, build_config: Dict[str, Any]) -> None:
         """
