@@ -32,7 +32,7 @@ dependencies:
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
-              - cwd: "{WORKDIR}/xxHash-0.8.3"
+              - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
                 cmd: ./autogen.sh
               - cmd: ./configure --prefix={PREFIXDIR} --enable-static --disable-shared
               - cmd: make -j{NPROC}

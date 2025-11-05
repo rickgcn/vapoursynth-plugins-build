@@ -27,7 +27,7 @@ releases:
         - name: dav1d
           version: 1.5.2
         - name: Little-CMS
-          version: 2.17
+          version: "2.17"
         - name: ffmpeg
           version: "7.1.2-with-Little-CMS"
         - name: xxHash
