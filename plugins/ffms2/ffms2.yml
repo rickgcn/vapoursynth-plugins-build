@@ -122,14 +122,14 @@ tests:
       - h264-test.mkv
     commands:
       - cwd: "{TESTDIR}"
-        cmd: vspipe av1-test.vpy --
+        cmd: vspipe h264-test.vpy --
   - name: hevc-test
     attachments:
       - hevc-test.vpy
       - hevc-test.mkv
     commands:
       - cwd: "{TESTDIR}"
-        cmd: vspipe av1-test.vpy --
+        cmd: vspipe hevc-test.vpy --
 attachments:
   av1-test.vpy:
     path: "{TESTDIR}"
