@@ -144,8 +144,12 @@ jobs:
             echo "$FILTERED_MATRIX" | jq .
           fi
 
-          # Output filtered matrix
-          echo "matrix=$FILTERED_MATRIX" >> $GITHUB_OUTPUT
+          # Output filtered matrix using heredoc format
+          {
+            echo "matrix<<EOF"
+            echo "$FILTERED_MATRIX"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
   # Job 3: Build plugins using matrix
   build:
