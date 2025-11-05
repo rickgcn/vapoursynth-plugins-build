@@ -9,6 +9,7 @@ import argparse
 import os
 import subprocess
 import sys
+import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -289,6 +290,15 @@ class PluginBuilder:
 
         # Get full dependency configurations
         full_deps_config = self.config.get('dependencies', {})
+
+        # If dependencies not in plugin config, try loading from shared dependencies file
+        if not full_deps_config:
+            deps_file_path = Path(self.plugins_dir) / 'dependencies.yml'
+            if deps_file_path.exists():
+                print(f"Loading dependencies from {deps_file_path}")
+                with open(deps_file_path, 'r', encoding='utf-8') as f:
+                    deps_data = yaml.safe_load(f)
+                    full_deps_config = deps_data.get('dependencies', {})
 
         # Build each dependency
         dep_builder = DependencyBuilder(
