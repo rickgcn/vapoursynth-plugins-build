@@ -46,7 +46,8 @@ releases:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}
           - cwd: "{WORKDIR}/ffms2-5.0"
-            cmd: ./configure --prefix={PREFIXDIR}
+            cmd: ./autogen.sh
+          - cmd: ./configure --prefix={PREFIXDIR}
           - cmd: make -j{NPROC}
           - cmd: sudo make install
       linux-.*:
@@ -56,7 +57,8 @@ releases:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}
           - cwd: "{WORKDIR}/ffms2-5.0"
-            cmd: ./configure --prefix={PREFIXDIR}
+            cmd: ./autogen.sh
+          - cmd: ./configure --prefix={PREFIXDIR}
           - cmd: make -j{NPROC}
           - cmd: sudo make install
     artifacts:
