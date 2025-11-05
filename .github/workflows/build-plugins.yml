@@ -377,7 +377,7 @@ jobs:
   test:
     name: Test ${{ matrix.plugin }} - ${{ matrix.test_name }} (${{ matrix.platform }})
     needs: generate-test-matrix
-    if: needs.generate-test-matrix.outputs.has-tests == 'true'
+    if: ${{ needs.generate-test-matrix.outputs.has-tests }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
