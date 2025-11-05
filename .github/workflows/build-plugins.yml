@@ -73,15 +73,89 @@ jobs:
           echo "Generated build matrix:"
           echo "$MATRIX" | jq .
 
-  # Job 2: Build plugins using matrix
-  build:
-    name: Build ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
+  # Job 2: Check existing releases and filter matrix
+  check-releases:
+    name: Check Existing Releases
+    runs-on: ubuntu-24.04
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has-builds == 'true'
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+      has-builds: ${{ steps.filter.outputs.has-builds }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Fetch all tags
+        run: |
+          git fetch --force --tags
+
+      - name: Check existing releases and filter matrix
+        id: filter
+        run: |
+          # Parse input matrix
+          INPUT_MATRIX='${{ needs.generate-matrix.outputs.matrix }}'
+          echo "Input matrix:"
+          echo "$INPUT_MATRIX" | jq .
+
+          # Fetch all tags
+          git fetch --force --tags
+
+          # Create empty filtered matrix
+          FILTERED_MATRIX='{"include": []}'
+
+          # Iterate through each matrix entry and check if tag exists
+          MATRIX_ENTRIES=$(echo "$INPUT_MATRIX" | jq -c '.include[]')
+
+          for entry in $MATRIX_ENTRIES; do
+            PLUGIN=$(echo "$entry" | jq -r '.plugin')
+            VERSION=$(echo "$entry" | jq -r '.version')
+            TAG_NAME="${PLUGIN}-${VERSION}"
+
+            # Check if tag exists
+            if git ls-remote --tags origin | grep -q "refs/tags/${TAG_NAME}$"; then
+              echo "Tag $TAG_NAME already exists, skipping..."
+            else
+              echo "Tag $TAG_NAME does not exist, adding to build matrix"
+              FILTERED_MATRIX=$(echo "$FILTERED_MATRIX" | jq --argjson entry "$entry" '.include += [$entry]')
+            fi
+          done
+
+          FILTERED_COUNT=$(echo "$FILTERED_MATRIX" | jq '. | length')
+
+          # Check if filtered matrix is empty
+          if [ "$FILTERED_COUNT" -eq 0 ]; then
+            echo "has-builds=false" >> $GITHUB_OUTPUT
+            echo "All releases already exist, skipping build"
+          else
+            echo "has-builds=true" >> $GITHUB_OUTPUT
+            echo "Filtered matrix (skipping existing releases):"
+            echo "$FILTERED_MATRIX" | jq .
+          fi
+
+          # Output filtered matrix
+          echo "matrix=$FILTERED_MATRIX" >> $GITHUB_OUTPUT
+
+  # Job 3: Build plugins using matrix
+  build:
+    name: Build ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
+    needs: check-releases
+    if: needs.check-releases.outputs.has-builds == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.check-releases.outputs.matrix) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
