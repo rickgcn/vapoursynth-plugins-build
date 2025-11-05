@@ -17,9 +17,9 @@ dependencies:
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/zimg-release-3.0.6"
                 cmd: ./autogen.sh
-              - cwd: ./configure --prefix={PREFIXDIR}
-              - cwd: make -j${NPROC}
-              - cwd: sudo make install
+              - cmd: ./configure --prefix={PREFIXDIR}
+              - cmd: make -j${NPROC}
+              - cmd: sudo make install
 
   vapoursynth:
     repository: https://github.com/vapoursynth/vapoursynth.git
