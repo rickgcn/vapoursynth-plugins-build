@@ -1,46 +1,54 @@
 FROM alpine:latest
 
+# Set environment variables
+ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+
 # Install build dependencies and Python 3
 RUN apk add --no-cache \
     autoconf \
     automake \
     build-base \
-    cmake \
     cython \
-    git \
     libtool \
-    nasm \
     pkgconfig \
     python3 \
     python3-dev
 
 # Build and install zimg
 WORKDIR /tmp/build
-RUN git clone https://github.com/sekrit-twc/zimg.git --depth 1 --branch release-3.0.6 && \
-    cd zimg && \
+RUN wget https://github.com/sekrit-twc/zimg/archive/refs/tags/release-3.0.6.tar.gz && \
+    tar xf release-3.0.6.tar.gz && \
+    cd zimg-release-3.0.6 && \
     ./autogen.sh && \
-    ./configure --prefix=/usr/local && \
+    CFLAGS="-O3 -fPIC" CXXFLAGS="-O3 -fPIC" ./configure --prefix=/usr/local && \
     make -j$(nproc) && \
     make install
 
 # Build and install VapourSynth R72
-RUN git clone https://github.com/vapoursynth/vapoursynth.git --depth 1 --branch R72 && \
-    cd vapoursynth && \
+RUN wget https://github.com/vapoursynth/vapoursynth/archive/refs/tags/R72.tar.gz && \
+    tar xf R72.tar.gz && \
+    cd vapoursynth-R72 && \
     ./autogen.sh && \
-    ./configure --prefix=/usr/local && \
+    ./configure && \
     make -j$(nproc) && \
     make install
 
-# Set environment variables
-ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
-ENV LD_LIBRARY_PATH=/usr/local/lib
-ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages
+RUN echo '/usr/local/lib/python3.12/site-packages' > /usr/lib/python3.12/site-packages/local.pth
 
 # Clean up build files
-RUN rm -rf /tmp/build
+RUN rm -rf /tmp/build && \
+    apk del --rdepends \
+    autoconf \
+    automake \
+    build-base \
+    libtool \
+    pkgconfig \
+    cython \
+    python3-dev && \
+    apk cache clean
 
 # Verify installation
-RUN vspipe --version && \
-    python3 -c "import vapoursynth; print('VapourSynth version:', vapoursynth.core.version())"
+RUN python3 -c "import vapoursynth; print('VapourSynth version:', vapoursynth.core.version())"
 
-WORKDIR /workspace
+CMD [ "/bin/sh" ]
