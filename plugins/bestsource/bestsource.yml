@@ -35,7 +35,8 @@ releases:
     build:
       darwin-.*:
         commands:
-          - cmd: git submodule update --init --recursive libp2p
+          - cwd: "{WORKDIR}/bestsource"
+            cmd: git submodule update --init --recursive libp2p
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release
           - cmd: ninja -C build
           - cmd: sudo ninja -C build install
@@ -43,7 +44,8 @@ releases:
         env:
           LDFLAGS: "-Wl,-Bsymbolic"
         commands:
-          - cmd: git submodule update --init --recursive libp2p
+          - cwd: "{WORKDIR}/bestsource"
+            cmd: git submodule update --init --recursive libp2p
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release
           - cmd: ninja -C build
           - cmd: sudo ninja -C build install
