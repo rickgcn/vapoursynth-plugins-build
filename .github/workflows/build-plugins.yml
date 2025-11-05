@@ -121,9 +121,10 @@ jobs:
           for entry in $MATRIX_ENTRIES; do
             PLUGIN=$(echo "$entry" | jq -r '.plugin')
             VERSION=$(echo "$entry" | jq -r '.version')
-            TAG_NAME="${PLUGIN}-${VERSION}"
+            PLATFORM=$(echo "$entry" | jq -r '.platform')
+            TAG_NAME="${PLUGIN}-${VERSION}-${PLATFORM}"
 
-            # Check if tag exists
+            # Check if tag exists for this specific platform
             if git ls-remote --tags origin | grep -q "refs/tags/${TAG_NAME}$"; then
               echo "Tag $TAG_NAME already exists, skipping..."
             else
@@ -191,11 +192,11 @@ jobs:
           # Determine which toolchain to download
           if [[ "${{ matrix.platform }}" == "linux-x86_64-glibc" ]]; then
             TOOLCHAIN_NAME="x86_64-linux-glibc-toolchain"
-            TOOLCHAIN_FILE="x86_64-linux-glibc.tar.gz"
+            TOOLCHAIN_FILE="x86_64-linux-glibc-toolchain.tar.gz"
             TOOLCHAIN_SUBDIR="x86_64-unknown-linux-gnu"
           elif [[ "${{ matrix.platform }}" == "linux-x86_64-musl" ]]; then
             TOOLCHAIN_NAME="x86_64-linux-musl-toolchain"
-            TOOLCHAIN_FILE="x86_64-linux-musl.tar.gz"
+            TOOLCHAIN_FILE="x86_64-linux-musl-toolchain.tar.gz"
             TOOLCHAIN_SUBDIR="x86_64-unknown-linux-musl"
           fi
 
@@ -563,7 +564,7 @@ jobs:
         run: |
           TAG_NAME="${{ matrix.plugin }}-${{ matrix.version }}"
 
-          # Check if tag exists
+          # Check if tag exists (using plugin-version tag, not platform-specific)
           if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME$"; then
             echo "Tag $TAG_NAME already exists, skipping release"
             echo "skip=true" >> $GITHUB_OUTPUT
