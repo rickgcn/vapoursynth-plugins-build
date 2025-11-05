@@ -100,8 +100,54 @@ jobs:
         if: runner.os == 'Linux'
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: autoconf automake build-essential cmake libtool meson nasm ninja-build pkg-config yasm
+          packages: autoconf automake build-essential cmake libtool meson nasm ninja-build pkg-config yasm wget
           version: 1.0
+
+      # Download and setup cross-compilation toolchain for Linux
+      - name: Setup cross-compilation toolchain (Linux)
+        if: runner.os == 'Linux' && (matrix.platform == 'linux-x86_64-glibc' || matrix.platform == 'linux-x86_64-musl')
+        run: |
+          # Extract repository owner from GITHUB_REPOSITORY
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+
+          # Determine which toolchain to download
+          if [[ "${{ matrix.platform }}" == "linux-x86_64-glibc" ]]; then
+            TOOLCHAIN_NAME="x86_64-linux-glibc-toolchain"
+            TOOLCHAIN_FILE="x86_64-linux-glibc.tar.gz"
+            TOOLCHAIN_SUBDIR="x86_64-unknown-linux-gnu"
+          elif [[ "${{ matrix.platform }}" == "linux-x86_64-musl" ]]; then
+            TOOLCHAIN_NAME="x86_64-linux-musl-toolchain"
+            TOOLCHAIN_FILE="x86_64-linux-musl.tar.gz"
+            TOOLCHAIN_SUBDIR="x86_64-unknown-linux-musl"
+          fi
+
+          echo "Toolchain name: $TOOLCHAIN_NAME"
+          echo "Toolchain file: $TOOLCHAIN_FILE"
+          echo "Toolchain subdir: $TOOLCHAIN_SUBDIR"
+
+          # Create x-tools directory in HOME
+          mkdir -p $HOME/x-tools
+
+          # Download toolchain from GitHub releases
+          cd $HOME/x-tools
+          TOOLCHAIN_URL="https://github.com/${REPO_OWNER}/vapoursynth-plugins-build/releases/download/${TOOLCHAIN_NAME}/${TOOLCHAIN_FILE}"
+          echo "Downloading toolchain from: $TOOLCHAIN_URL"
+          wget -O "$TOOLCHAIN_FILE" "$TOOLCHAIN_URL"
+
+          # Extract toolchain (this will create x86_64-unknown-linux-gnu/ or x86_64-unknown-linux-musl/)
+          echo "Extracting toolchain..."
+          tar xf "$TOOLCHAIN_FILE"
+
+          # Add toolchain bin to PATH (prepend to ensure priority)
+          export PATH="$HOME/x-tools/$TOOLCHAIN_SUBDIR/bin:$PATH"
+
+          # List toolchain contents
+          echo "Toolchain installed:"
+          ls -la
+
+          # Verify toolchain
+          echo "Verifying toolchain..."
+          gcc --version
 
       # Platform-specific setup for macOS
       - name: Setup macOS build environment

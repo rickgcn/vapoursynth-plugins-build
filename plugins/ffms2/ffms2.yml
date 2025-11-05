@@ -4,6 +4,19 @@ type: plugin
 description: An FFmpeg based source library and Avisynth/VapourSynth plugin for easy frame accurate access
 repository: https://github.com/FFMS/ffms2.git
 license: MIT
+env:
+  darwin-x86_64:
+    CFLAGS: "-mmacosx-version-min=10.11 -mmacos-version-min=10.11"
+    CXXFLAGS: "-mmacosx-version-min=10.11 -mmacos-version-min=10.11"
+  darwin-aarch64:
+    CFLAGS: "-mmacosx-version-min=11.0 -mmacos-version-min=11.0"
+    CXXFLAGS: "-mmacosx-version-min=11.0 -mmacos-version-min=11.0"
+  darwin-.*:
+    CFLAGS: "-O3 -fPIC"
+    CXXFLAGS: "-O3 -fPIC"
+  linux-.*:
+    CFLAGS: "-O3 -fPIC"
+    CXXFLAGS: "-O3 -fPIC"
 releases:
   - version: "5.0"
     type: tarball
@@ -29,20 +42,15 @@ releases:
           - cmd: MSBuild.exe /t:Rebuild /p:PlatformToolset=v143 /m /p:Configuration=Release /p:Platform=x86 "./build-msvc/ffms2.sln"
           - cmd: MSBuild.exe /t:Rebuild /p:PlatformToolset=v143 /m /p:Configuration=Release /p:Platform=x64 "./build-msvc/ffms2.sln"
       darwin-.*:
-        env:
-          CFLAGS: "-O3 -fPIC"
-          CXXFLAGS: "-O3 -fPIC"
         commands:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}
           - cwd: "{WORKDIR}/ffms2-5.0"
             cmd: ./configure --prefix={PREFIXDIR}
           - cmd: make -j{NPROC}
-          - cmd: make install
+          - cmd: sudo make install
       linux-.*:
         env:
-          CFLAGS: "-O3 -fPIC"
-          CXXFLAGS: "-O3 -fPIC"
           LDFLAGS: "-Wl,-Bsymbolic"
         commands:
           - cwd: "{WORKDIR}"
@@ -50,7 +58,7 @@ releases:
           - cwd: "{WORKDIR}/ffms2-5.0"
             cmd: ./configure --prefix={PREFIXDIR}
           - cmd: make -j{NPROC}
-          - cmd: make install
+          - cmd: sudo make install
     artifacts:
       windows-x86:
         - "{WORKDIR}/ffms2-5.0/build-msvc/bin/Win32/Release/ffms2.dll"
@@ -71,16 +79,13 @@ dependencies:
         hash: sha256sum:9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
         build:
           "(linux|darwin)-.*":
-            env:
-              CFLAGS: "-O3 -fPIC"
-              CXXFLAGS: "-O3 -fPIC"
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/zlib-1.3.1"
                 cmd: ./configure --static --prefix={PREFIXDIR}
               - cmd: make -j{NPROC}
-              - cmd: make install
+              - cmd: sudo make install
   dav1d:
     repository: https://code.videolan.org/videolan/dav1d.git
     license: BSD-2-Clause
@@ -91,16 +96,13 @@ dependencies:
         hash: sha256sum:2fc0810b4cdf72784b3c107827ff10b1d83ec709a1ec1fbdbc6a932daf65ead6
         build:
           "(linux|darwin)-.*":
-            env:
-              CFLAGS: "-O3 -fPIC"
-              CXXFLAGS: "-O3 -fPIC"
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/dav1d-1.5.2"
                 cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --default-library=static
               - cmd: ninja -C build
-              - cmd: ninja -C build install
+              - cmd: sudo ninja -C build install
   ffmpeg:
     repository: https://git.ffmpeg.org/ffmpeg.git
     license: LGPL-2.1-or-later
@@ -111,16 +113,13 @@ dependencies:
         hash: sha256sum:3be466dfd1a312d752c20ece5b413248a5808fba3c967da0624bac48a4380857
         build:
           "(linux|darwin)-.*":
-            env:
-              CFLAGS: "-O3 -fPIC"
-              CXXFLAGS: "-O3 -fPIC"
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/ffmpeg-6.1.3"
                 cmd: ./configure --prefix={PREFIXDIR} --enable-static --disable-shared --enable-pic --disable-encoders --enable-libdav1d
               - cmd: make -j{NPROC}
-              - cmd: make install
+              - cmd: sudo make install
 tests:
   - name: av1-test
     attachments:
