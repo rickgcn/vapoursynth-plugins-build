@@ -27,7 +27,14 @@ from utils import (
 class DependencyBuilder:
     """Build plugin dependencies."""
 
-    def __init__(self, workdir: str, prefixdir: Optional[str], platform: str, nproc: int = 1):
+    def __init__(
+        self,
+        workdir: str,
+        prefixdir: Optional[str],
+        platform: str,
+        nproc: int = 1,
+        parent_config: Optional[Dict[str, Any]] = None
+    ):
         """
         Initialize dependency builder.
 
@@ -36,6 +43,7 @@ class DependencyBuilder:
             prefixdir: Installation prefix directory
             platform: Target platform
             nproc: Number of parallel jobs
+            parent_config: Parent plugin configuration (for global env)
         """
         self.workdir = Path(workdir)
         self.prefixdir = prefixdir
@@ -44,6 +52,11 @@ class DependencyBuilder:
         self.env = EnvironmentManager.get_default_env(platform, str(workdir), prefixdir)
         # Add NPROC to environment
         self.env['NPROC'] = str(nproc)
+
+        # Add parent's global env to self.env if provided
+        if parent_config and 'env' in parent_config:
+            global_env = EnvironmentManager.merge_global_env(parent_config['env'], platform)
+            self.env.update(global_env)
 
     def build_dependency(
         self,
@@ -220,6 +233,11 @@ class PluginBuilder:
         # Load plugin configuration
         self.config = YAMLLoader.load_plugin_config(plugin_name, plugins_dir)
 
+        # Add global env to self.env if specified
+        if 'env' in self.config:
+            global_env = EnvironmentManager.merge_global_env(self.config['env'], platform)
+            self.env.update(global_env)
+
         # Find the specific release
         self.release_config = None
         for release in self.config.get('releases', []):
@@ -279,7 +297,13 @@ class PluginBuilder:
         full_deps_config = self.config.get('dependencies', {})
 
         # Build each dependency
-        dep_builder = DependencyBuilder(str(self.workdir), self.prefixdir, self.platform, self.nproc)
+        dep_builder = DependencyBuilder(
+            str(self.workdir),
+            self.prefixdir,
+            self.platform,
+            self.nproc,
+            parent_config=self.config
+        )
         for dep in dep_list:
             dep_name = dep['name']
             dep_version = dep['version']

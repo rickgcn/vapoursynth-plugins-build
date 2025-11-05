@@ -105,6 +105,30 @@ class EnvironmentManager:
             result = result.replace(f"{{{key}}}", value)
         return result
 
+    @staticmethod
+    def merge_global_env(config_env: Dict, platform: str) -> Dict[str, str]:
+        """
+        Merge global env configurations based on platform matching.
+
+        Args:
+            config_env: Global env configuration from YAML config
+            platform: Target platform (e.g., 'darwin-x86_64')
+
+        Returns:
+            Dictionary of merged environment variables
+        """
+        merged_env = {}
+
+        # Iterate over env config and match patterns
+        # Later patterns override earlier ones if they match
+        for pattern, env_vars in config_env.items():
+            if PlatformMatcher.match(pattern, platform):
+                # Merge env_vars into merged_env (pattern matches later override earlier)
+                for key, value in env_vars.items():
+                    merged_env[key] = value
+
+        return merged_env
+
 
 class YAMLLoader:
     """Load and parse YAML plugin configuration files."""
