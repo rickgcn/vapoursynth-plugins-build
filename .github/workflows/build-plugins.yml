@@ -488,7 +488,8 @@ jobs:
   generate-release-matrix:
     name: Generate Release Matrix
     needs: [build, test]
-    # Run if build succeeded and test either succeeded or was skipped (no tests defined)
+    # Run if build succeeded
+    # If tests exist, they must succeed; if no tests, test job will be skipped and that's ok
     # Only run on push to main branch
     if: |
       always() &&
