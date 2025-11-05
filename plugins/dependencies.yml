@@ -2,6 +2,24 @@
 # This file contains common dependencies that can be used by multiple plugins
 
 dependencies:
+  vapoursynth:
+    repository: https://github.com/vapoursynth/vapoursynth.git
+    license: LGPL-2.1
+    versions:
+      "R72":
+        type: tarball
+        source: https://github.com/vapoursynth/vapoursynth/archive/refs/tags/R72.tar.gz
+        hash: sha256sum:aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80
+        build:
+          "(linux|darwin)-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/vapoursynth-R72"
+                cmd: ./autogen.sh
+              - cmd: ./configure --prefix={PREFIXDIR} --disable-x86-asm --disable-vsscript --disable-vspipe --disable-python-module
+              - cmd: make -j$(nproc)
+              - cmd: sudo make install
   xxHash:
     repository: https://github.com/Cyan4973/xxHash.git
     license: BSD-2-Clause

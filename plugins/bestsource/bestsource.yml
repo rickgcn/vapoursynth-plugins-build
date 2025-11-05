@@ -24,6 +24,8 @@ releases:
     tag: "R14"
     dependencies:
       "(linux|darwin)-.*":
+        - name: vapoursynth
+          version: "R72"
         - name: dav1d
           version: 1.5.2
         - name: Little-CMS
