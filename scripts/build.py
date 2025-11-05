@@ -129,6 +129,12 @@ class DependencyBuilder:
         """
         # Merge build environment with base environment
         build_env = os.environ.copy()
+
+        # Add self.env variables first (includes DL_FILE_NAME, WORKDIR, etc.)
+        for key, value in self.env.items():
+            build_env[key] = value
+
+        # Override with build_config env if specified
         if 'env' in build_config:
             for key, value in build_config['env'].items():
                 # Substitute variables in environment values

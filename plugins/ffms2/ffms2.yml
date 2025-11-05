@@ -96,8 +96,8 @@ dependencies:
               CXXFLAGS: "-O3 -fPIC"
             commands:
               - cwd: "{WORKDIR}"
-                cmd: tar xf (DL_FILE_NAME)
-              - cwd: "(WORKDIR)/dav1d-1.5.2"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/dav1d-1.5.2"
                 cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --default-library=static
               - cmd: ninja -C build
               - cmd: ninja -C build install
