@@ -9,7 +9,7 @@ dependencies:
       "R72":
         type: tarball
         source: https://github.com/vapoursynth/vapoursynth/archive/refs/tags/R72.tar.gz
-        hash: sha256sum:aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80
+        hash: sha256sum:650f77feebfd08842b521273f59e0c88f7ba9d7cb5f151d89b79b8dfdd4ce633
         build:
           "(linux|darwin)-.*":
             commands:
