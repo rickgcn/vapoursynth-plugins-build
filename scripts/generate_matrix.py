@@ -141,9 +141,7 @@ def get_runner_for_platform(platform: str) -> str:
     Returns:
         GitHub Actions runner label
     """
-    if platform.startswith('windows'):
-        return 'windows-latest'
-    elif platform.startswith('linux'):
+    if platform.startswith('linux'):
         return 'ubuntu-24.04'
     elif platform.startswith('darwin'):
         if 'aarch64' in platform:

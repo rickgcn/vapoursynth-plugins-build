@@ -31,16 +31,6 @@ releases:
         - name: ffmpeg
           version: 6.1.3
     build:
-      windows-.*:
-        commands:
-          - cwd: "{WORKDIR}"
-            cmd: tar xf {DL_FILE_NAME}
-          - cwd: "{WORKDIR}/ffms2-5.0"
-            cmd: vcpkg install ffmpeg[avcodec,avdevice,avfilter,avformat,swresample,swscale,zlib,bzip2,core,dav1d,gpl,version3,lzma,openssl,xml2]:x86-windows-static
-          - cmd: vcpkg install ffmpeg[avcodec,avdevice,avfilter,avformat,swresample,swscale,zlib,bzip2,core,dav1d,gpl,version3,lzma,openssl,xml2]:x64-windows-static
-          - cmd: vcpkg integrate install
-          - cmd: MSBuild.exe /t:Rebuild /p:PlatformToolset=v143 /m /p:Configuration=Release /p:Platform=x86 "./build-msvc/ffms2.sln"
-          - cmd: MSBuild.exe /t:Rebuild /p:PlatformToolset=v143 /m /p:Configuration=Release /p:Platform=x64 "./build-msvc/ffms2.sln"
       darwin-.*:
         commands:
           - cwd: "{WORKDIR}"
@@ -62,10 +52,6 @@ releases:
           - cmd: make -j{NPROC}
           - cmd: sudo make install
     artifacts:
-      windows-x86:
-        - "{WORKDIR}/ffms2-5.0/build-msvc/bin/Win32/Release/ffms2.dll"
-      windows-x64:
-        - "{WORKDIR}/ffms2-5.0/build-msvc/bin/x64/Release/ffms2.dll"
       linux-.*:
         - "{PREFIXDIR}/lib/libffms2.so"
       darwin-.*:

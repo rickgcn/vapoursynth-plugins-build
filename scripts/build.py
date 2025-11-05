@@ -172,16 +172,10 @@ class DependencyBuilder:
 
             print(f"\n[{cwd}]$ {cmd}")
 
-            # Determine shell based on platform
-            if self.platform.startswith('windows'):
-                shell = True
-            else:
-                shell = True
-
             # Execute command
             result = subprocess.run(
                 cmd,
-                shell=shell,
+                shell=True,
                 cwd=cwd,
                 env=build_env,
                 text=True

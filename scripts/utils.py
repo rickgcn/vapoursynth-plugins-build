@@ -18,8 +18,6 @@ class PlatformMatcher:
     """Match platform patterns against actual platform names."""
 
     PLATFORMS = [
-        'windows-x86',
-        'windows-x64',
         'linux-x86_64-glibc',
         'linux-x86_64-musl',
         'darwin-x86_64',
@@ -84,7 +82,6 @@ class EnvironmentManager:
             env['PREFIXDIR'] = '/usr/local'
         elif platform.startswith('darwin-aarch64'):
             env['PREFIXDIR'] = '/opt/homebrew'
-        # Windows does not have PREFIXDIR
 
         return env
 
@@ -324,7 +321,7 @@ def create_attachment_files(attachments: Dict[str, Any], env: Dict[str, str]) ->
 if __name__ == '__main__':
     # Test platform matching
     print("Testing platform matching...")
-    for pattern in ['windows-.*', 'linux-.*', 'darwin-.*', '(linux|darwin)-.*']:
+    for pattern in ['linux-.*', 'darwin-.*', '(linux|darwin)-.*']:
         print(f"\nPattern: {pattern}")
         matches = PlatformMatcher.get_matching_platforms(pattern)
         print(f"Matches: {matches}")

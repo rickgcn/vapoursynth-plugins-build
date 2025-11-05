@@ -201,12 +201,7 @@ def get_plugin_path_for_platform(platform: str, artifact_dir: str) -> str:
     artifact_path = Path(artifact_dir)
 
     # Look for common plugin file patterns
-    if platform.startswith('windows'):
-        # Windows: .dll files
-        dll_files = list(artifact_path.glob('*.dll'))
-        if dll_files:
-            return str(dll_files[0])
-    elif platform.startswith('linux'):
+    if platform.startswith('linux'):
         # Linux: .so files
         so_files = list(artifact_path.glob('*.so'))
         if so_files:

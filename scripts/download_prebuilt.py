@@ -163,7 +163,7 @@ def download_vapoursynth(repo: str, version: str, platform: str, dest_dir: str) 
     Args:
         repo: Repository in format 'owner/repo'
         version: VapourSynth version (e.g., 'R70')
-        platform: Platform name (e.g., 'linux-musl', 'linux-glibc', 'macos', 'windows')
+        platform: Platform name (e.g., 'linux-musl', 'linux-glibc', 'macos')
         dest_dir: Destination directory
 
     Returns:
@@ -176,7 +176,6 @@ def download_vapoursynth(repo: str, version: str, platform: str, dest_dir: str) 
         'linux-musl': f'vapoursynth-{version}-linux-musl.tar.gz',
         'linux-glibc': f'vapoursynth-{version}-linux-glibc.tar.gz',
         'macos': f'vapoursynth-{version}-macos.tar.gz',
-        'windows': f'vapoursynth-{version}-windows-x64.7z'
     }
 
     if platform not in asset_name_patterns:
