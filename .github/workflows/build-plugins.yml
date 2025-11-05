@@ -317,6 +317,7 @@ jobs:
   generate-test-matrix:
     name: Generate Test Matrix
     needs: build
+    if: always() && needs.build.result != 'skipped'
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
