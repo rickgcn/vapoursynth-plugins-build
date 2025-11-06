@@ -71,6 +71,8 @@ class EnvironmentManager:
         Returns:
             Dictionary of environment variables
         """
+        import os
+
         env = {
             'WORKDIR': workdir,
         }
@@ -82,6 +84,10 @@ class EnvironmentManager:
             env['PREFIXDIR'] = '/usr/local'
         elif platform.startswith('darwin-aarch64'):
             env['PREFIXDIR'] = '/opt/homebrew'
+
+        # Check for SYSROOT from environment (for cross-compilation)
+        if 'SYSROOT' in os.environ:
+            env['SYSROOT'] = os.environ['SYSROOT']
 
         return env
 

@@ -227,8 +227,10 @@ class DependencyBuilder:
         build_env = os.environ.copy()
 
         # Add self.env variables first (includes DL_FILE_NAME, WORKDIR, etc.)
+        # Substitute variables in self.env values before adding to build_env
         for key, value in self.env.items():
-            build_env[key] = value
+            substituted_value = EnvironmentManager.substitute_vars(value, self.env)
+            build_env[key] = substituted_value
 
         # Merge with build_config env (accumulate values for same variables)
         if 'env' in build_config:

@@ -221,6 +221,11 @@ jobs:
           echo "Extracting toolchain..."
           tar xf "$TOOLCHAIN_FILE"
 
+          # Set SYSROOT path for cross-compilation
+          export TOOLCHAIN_ROOT="$HOME/x-tools/$TOOLCHAIN_SUBDIR"
+          export SYSROOT="$TOOLCHAIN_ROOT/$TOOLCHAIN_SUBDIR/sysroot"
+          echo "SYSROOT=$SYSROOT" >> $GITHUB_ENV
+
           # Add toolchain bin to PATH (prepend to ensure priority)
           export TOOLCHAIN_BIN="$HOME/x-tools/$TOOLCHAIN_SUBDIR/bin"
           echo "PATH=$TOOLCHAIN_BIN:$PATH" >> $GITHUB_ENV
