@@ -274,6 +274,7 @@ jobs:
       - name: Build plugin
         id: build
         shell: bash
+        continue-on-error: true
         run: |
           # Set PREFIXDIR argument if defined
           if [ -n "$PREFIXDIR" ]; then
@@ -293,6 +294,7 @@ jobs:
       # Collect artifacts from YAML-defined paths
       - name: Collect artifacts
         id: artifacts
+        if: steps.build.conclusion == 'success'
         shell: bash
         run: |
           # Create artifacts directory
@@ -315,11 +317,54 @@ jobs:
           ls -lh artifacts/
 
       - name: Upload artifacts
+        if: steps.build.conclusion == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
           path: artifacts/
           retention-days: 7
+
+      - name: Record build result
+        if: always()
+        env:
+          PLUGIN: ${{ matrix.plugin }}
+          VERSION: ${{ matrix.version }}
+          PLATFORM: ${{ matrix.platform }}
+          RUNNER: ${{ matrix.runner }}
+          BUILD_STATUS: ${{ steps.build.conclusion }}
+        run: |
+          mkdir -p build-status
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = {
+              "plugin": os.environ["PLUGIN"],
+              "version": os.environ["VERSION"],
+              "platform": os.environ["PLATFORM"],
+              "runner": os.environ["RUNNER"],
+              "status": os.environ["BUILD_STATUS"],
+          }
+
+          Path("build-status").mkdir(parents=True, exist_ok=True)
+          with open("build-status/build-result.json", "w", encoding="utf-8") as fh:
+              json.dump(output, fh)
+
+          print("Recorded build result:", json.dumps(output))
+          PY
+
+      - name: Upload build result metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-result-${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
+          path: build-status/build-result.json
+          retention-days: 7
+
+      - name: Fail if build step failed
+        if: steps.build.conclusion != 'success'
+        run: exit 1
 
   # Job 3: Generate test matrix
   generate-test-matrix:
@@ -343,6 +388,14 @@ jobs:
         run: |
           pip install pyyaml
 
+      - name: Download build result metadata
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: build-result-*
+          path: build-results
+          merge-multiple: true
+
       - name: Generate test matrix
         id: generate
         run: |
@@ -356,28 +409,51 @@ jobs:
             PLUGINS_ARGS=""
           fi
 
-          # Generate test matrix
-          MATRIX=$(python scripts/generate_matrix.py --type test $PLUGINS_ARGS --output github)
+          # Generate full test matrix in JSON format
+          python scripts/generate_matrix.py --type test $PLUGINS_ARGS --output json > base_test_matrix.json
+          mkdir -p build-results
 
-          # Check if matrix is empty
-          if echo "$MATRIX" | jq -e '.include | length > 0' > /dev/null; then
-            echo "has-tests=true" >> $GITHUB_OUTPUT
-          else
-            echo "has-tests=false" >> $GITHUB_OUTPUT
-          fi
+          # Filter test matrix to include only successful builds
+          python3 - <<'PY'
+          import glob
+          import json
+          import os
 
-          # Output matrix for next job
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          with open("base_test_matrix.json", "r", encoding="utf-8") as fh:
+              base_matrix = json.load(fh)
 
-          # Pretty print for logs
-          echo "Generated test matrix:"
-          echo "$MATRIX" | jq .
+          success_keys = set()
+          for path in glob.glob(os.path.join("build-results", "**", "*.json"), recursive=True):
+              with open(path, "r", encoding="utf-8") as fh:
+                  data = json.load(fh)
+              if data.get("status") == "success":
+                  success_keys.add((data["plugin"], data["version"], data["platform"]))
+
+          filtered_matrix = [
+              entry for entry in base_matrix
+              if (entry["plugin"], entry["version"], entry["platform"]) in success_keys
+          ]
+
+          github_matrix = {"include": filtered_matrix}
+
+          print("Filtered test matrix:")
+          print(json.dumps(github_matrix, indent=2))
+
+          output_path = os.environ["GITHUB_OUTPUT"]
+          with open(output_path, "a", encoding="utf-8") as fh:
+              fh.write(f"has-tests={'true' if filtered_matrix else 'false'}\n")
+              fh.write("matrix=" + json.dumps(github_matrix) + "\n")
+          PY
 
   # Job 4: Test plugins using matrix
   test:
     name: Test ${{ matrix.plugin }} - ${{ matrix.test_name }} (${{ matrix.platform }})
     needs: [build, generate-test-matrix]
-    if: needs.generate-test-matrix.outputs.has-tests == 'true' && needs.build.result == 'success'
+    if: |
+      always() &&
+      needs.generate-test-matrix.outputs.has-tests == 'true' &&
+      needs.build.result != 'skipped' &&
+      needs.build.result != 'cancelled'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -472,14 +548,18 @@ jobs:
   # Job 5: Generate release matrix (per plugin-version)
   generate-release-matrix:
     name: Generate Release Matrix
-    needs: [build, test]
+    needs: [build, test, generate-test-matrix]
     # Run if build succeeded
     # If tests exist, they must succeed; if no tests, test job will be skipped and that's ok
     # Only run on push to main branch
     if: |
       always() &&
       needs.build.result == 'success' &&
-      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      needs.generate-test-matrix.result == 'success' &&
+      (
+        needs.test.result == 'success' ||
+        needs.generate-test-matrix.outputs.has-tests == 'false'
+      ) &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
