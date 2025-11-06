@@ -413,6 +413,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.generate-test-matrix.outputs.matrix) }}
+    env:
+      TEST_RESULT_FILE: ''
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
