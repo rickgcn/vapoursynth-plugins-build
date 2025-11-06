@@ -4,19 +4,6 @@ type: plugin
 description: A super great audio/video source and FFmpeg wrapper
 repository: https://github.com/vapoursynth/bestsource.git
 license: MIT
-env:
-  darwin-x86_64:
-    CFLAGS: "-mmacosx-version-min=10.11 -mmacos-version-min=10.11"
-    CXXFLAGS: "-mmacosx-version-min=10.11 -mmacos-version-min=10.11"
-  darwin-aarch64:
-    CFLAGS: "-mmacosx-version-min=11.0 -mmacos-version-min=11.0"
-    CXXFLAGS: "-mmacosx-version-min=11.0 -mmacos-version-min=11.0"
-  darwin-.*:
-    CFLAGS: "-O3 -fPIC"
-    CXXFLAGS: "-O3 -fPIC"
-  linux-.*:
-    CFLAGS: "-O3 -fPIC"
-    CXXFLAGS: "-O3 -fPIC"
 releases:
   - version: "R14"
     type: git
@@ -37,6 +24,7 @@ releases:
         commands:
           - cwd: "{WORKDIR}/bestsource"
             cmd: git submodule update --init --recursive
+          - cmd: sed -i '' "s/library('libbestsource'/static_library('libbestsource'/" meson.build
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release
           - cmd: ninja -C build
           - cmd: sudo ninja -C build install
@@ -46,14 +34,15 @@ releases:
         commands:
           - cwd: "{WORKDIR}/bestsource"
             cmd: git submodule update --init --recursive
+          - cmd: sed -i 's/library(\x27libbestsource\x27/static_library(\x27libbestsource\x27/' meson.build
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release
           - cmd: ninja -C build
           - cmd: sudo ninja -C build install
     artifacts:
       linux-.*:
-        - "{PREFIXDIR}/lib/x86_64-linux-gnu/libbestsource.so"
+        - "{PREFIXDIR}/lib/vapoursynth/bestsource.so"
       darwin-.*:
-        - "{PREFIXDIR}/lib/libbestsource.dylib"
+        - "{PREFIXDIR}/lib/vapoursynth/bestsource.dylib"
 tests:
   - name: av1-test
     attachments:

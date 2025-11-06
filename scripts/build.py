@@ -230,11 +230,25 @@ class DependencyBuilder:
         for key, value in self.env.items():
             build_env[key] = value
 
-        # Override with build_config env if specified
+        # Merge with build_config env (accumulate values for same variables)
         if 'env' in build_config:
             for key, value in build_config['env'].items():
                 # Substitute variables in environment values
-                build_env[key] = EnvironmentManager.substitute_vars(value, self.env)
+                value = EnvironmentManager.substitute_vars(value, self.env)
+
+                # If the variable already exists in build_env, append the new value
+                if key in build_env:
+                    # Check if the existing value and new value are both non-empty
+                    existing_value = build_env[key]
+                    if existing_value and value:
+                        # Append with space separator
+                        build_env[key] = f"{existing_value} {value}"
+                    else:
+                        # If either is empty, use the non-empty one (or the new one)
+                        build_env[key] = value or existing_value
+                else:
+                    # Variable doesn't exist yet, just set it
+                    build_env[key] = value
 
         # Execute commands
         commands = build_config.get('commands', [])
@@ -309,6 +323,16 @@ class PluginBuilder:
 
         # Load plugin configuration
         self.config = YAMLLoader.load_plugin_config(plugin_name, plugins_dir)
+
+        # If env not in plugin config, try loading from shared env file
+        if 'env' not in self.config:
+            env_file_path = Path(self.plugins_dir) / 'env.yml'
+            if env_file_path.exists():
+                print(f"Loading env configuration from {env_file_path}")
+                with open(env_file_path, 'r', encoding='utf-8') as f:
+                    env_data = yaml.safe_load(f)
+                    if 'env' in env_data:
+                        self.config['env'] = env_data['env']
 
         # Add global env to self.env if specified
         if 'env' in self.config:
