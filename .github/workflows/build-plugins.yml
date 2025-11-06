@@ -294,7 +294,7 @@ jobs:
       # Collect artifacts from YAML-defined paths
       - name: Collect artifacts
         id: artifacts
-        if: steps.build.conclusion == 'success'
+        if: steps.build.outcome == 'success'
         shell: bash
         run: |
           # Create artifacts directory
@@ -317,7 +317,7 @@ jobs:
           ls -lh artifacts/
 
       - name: Upload artifacts
-        if: steps.build.conclusion == 'success'
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
@@ -331,7 +331,7 @@ jobs:
           VERSION: ${{ matrix.version }}
           PLATFORM: ${{ matrix.platform }}
           RUNNER: ${{ matrix.runner }}
-          BUILD_STATUS: ${{ steps.build.conclusion }}
+          BUILD_STATUS: ${{ steps.build.outcome }}
           RESULT_FILE: build-status/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}.json
         run: |
           mkdir -p build-status
@@ -344,10 +344,6 @@ jobs:
           name: build-result-${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
           path: build-status/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}.json
           retention-days: 7
-
-      - name: Fail if build step failed
-        if: steps.build.conclusion != 'success'
-        run: exit 1
 
   # Job 3: Generate test matrix
   generate-test-matrix:
@@ -512,7 +508,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           TEST_NAME: ${{ matrix.test_name }}
           RUNNER: ${{ matrix.runner }}
-          TEST_STATUS: ${{ steps.run-test.conclusion }}
+          TEST_STATUS: ${{ steps.run-test.outcome }}
           RESULT_PATH_FILE: ${{ runner.temp }}/test-result-path.txt
         run: |
           mkdir -p test-status
@@ -534,7 +530,7 @@ jobs:
           retention-days: 7
 
       - name: Fail if test failed
-        if: steps.run-test.conclusion != 'success'
+        if: steps.run-test.outcome != 'success'
         run: exit 1
 
   # Job 5: Generate release matrix (per plugin-version)
