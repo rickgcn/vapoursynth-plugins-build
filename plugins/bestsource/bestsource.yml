@@ -51,9 +51,9 @@ releases:
           - cmd: sudo ninja -C build install
     artifacts:
       linux-.*:
-        - "{PREFIXDIR}/lib/vapoursynth/bestsource.so"
+        - "{PREFIXDIR}/lib/libbestsource.so"
       darwin-.*:
-        - "{PREFIXDIR}/lib/vapoursynth/bestsource.dylib"
+        - "{PREFIXDIR}/lib/libbestsource.dylib"
 tests:
   - name: av1-test
     attachments:
