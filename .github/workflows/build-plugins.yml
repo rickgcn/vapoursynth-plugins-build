@@ -486,7 +486,7 @@ jobs:
               -v "${{ runner.temp }}/artifacts":/artifacts \
               -v "$(pwd)":/src \
               ghcr.io/${REPO_OWNER}/vapoursynth-tester:${IMAGE_TAG} \
-              sh -c "cd /src && python3 scripts/test.py \
+              sh -c "python3 -m pip install --user --no-cache-dir pyyaml zstandard >/dev/null 2>&1 && cd /src && python3 scripts/test.py \
                 --plugin '${{ matrix.plugin }}' \
                 --version '${{ matrix.version }}' \
                 --platform '${{ matrix.platform }}' \
@@ -598,7 +598,9 @@ jobs:
   create-release:
     name: Release ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
     needs: [test, generate-release-matrix]
-    if: needs.generate-release-matrix.outputs.has-releases == 'true'
+    if: |
+      always() &&
+      needs.generate-release-matrix.outputs.has-releases == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
