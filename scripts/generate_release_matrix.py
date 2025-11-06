@@ -7,7 +7,7 @@ import argparse
 import json
 import os
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 
 Record = Dict[str, str]
@@ -90,7 +90,7 @@ def main() -> None:
         if entries and all(item.get("status") == "success" for item in entries)
     }
 
-    release_candidates: Dict[Tuple[str, str], set[str]] = {}
+    release_candidates: List[Dict[str, str]] = []
     skipped_due_to_tests: List[Key] = []
 
     for key, status in build_status.items():
@@ -101,18 +101,19 @@ def main() -> None:
             skipped_due_to_tests.append(key)
             continue
         plugin, version, platform = key
-        release_candidates.setdefault((plugin, version), set()).add(platform)
+        release_candidates.append(
+            {"plugin": plugin, "version": version, "platform": platform}
+        )
 
     if skipped_due_to_tests:
         print("Skipping release for the following platform(s) due to missing/failed tests:")
         for plugin, version, platform in sorted(skipped_due_to_tests):
             print(f"  - {plugin} {version} ({platform})")
 
-    matrix_entries = [
-        {"plugin": plugin, "version": version}
-        for (plugin, version), platforms in sorted(release_candidates.items())
-        if platforms
-    ]
+    matrix_entries = sorted(
+        release_candidates,
+        key=lambda entry: (entry["plugin"], entry["version"], entry["platform"]),
+    )
 
     github_matrix = {"include": matrix_entries}
     print("Release matrix candidates:")

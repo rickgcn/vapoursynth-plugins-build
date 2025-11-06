@@ -61,7 +61,7 @@ jobs:
           fi
 
           # Generate matrix
-          MATRIX=$(python scripts/generate_matrix.py --type build $PLUGINS_ARGS --output github)
+          MATRIX=$(python3 scripts/generate_matrix.py --type build $PLUGINS_ARGS --output github)
 
           # Check if matrix is empty
           if echo "$MATRIX" | jq -e '.include | length > 0' > /dev/null; then
@@ -284,7 +284,7 @@ jobs:
           fi
 
           # Run build script and capture output
-          python scripts/build.py \
+          python3 scripts/build.py \
             --plugin "${{ matrix.plugin }}" \
             --version "${{ matrix.version }}" \
             --platform "${{ matrix.platform }}" \
@@ -344,6 +344,10 @@ jobs:
           name: build-result-${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
           path: build-status/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}.json
           retention-days: 7
+
+      - name: Fail build if step failed
+        if: steps.build.outcome != 'success'
+        run: exit 1
 
   # Job 3: Generate test matrix
   generate-test-matrix:
@@ -482,7 +486,7 @@ jobs:
               -v "${{ runner.temp }}/artifacts":/artifacts \
               -v "$(pwd)":/src \
               ghcr.io/${REPO_OWNER}/vapoursynth-tester:${IMAGE_TAG} \
-              bash -c "cd /src && python scripts/test.py \
+              sh -c "cd /src && python3 scripts/test.py \
                 --plugin '${{ matrix.plugin }}' \
                 --version '${{ matrix.version }}' \
                 --platform '${{ matrix.platform }}' \
@@ -491,7 +495,7 @@ jobs:
                 --testdir /tmp/test"
           else
             # Use native testing for macOS
-            python scripts/test.py \
+            python3 scripts/test.py \
               --plugin "${{ matrix.plugin }}" \
               --version "${{ matrix.version }}" \
               --platform "${{ matrix.platform }}" \
@@ -533,7 +537,7 @@ jobs:
         if: steps.run-test.outcome != 'success'
         run: exit 1
 
-  # Job 5: Generate release matrix (per plugin-version)
+  # Job 5: Generate release matrix (per plugin-version-platform)
   generate-release-matrix:
     name: Generate Release Matrix
     needs: [build, test, generate-test-matrix]
@@ -590,9 +594,9 @@ jobs:
             --base-test-matrix base_test_matrix.json \
             --output "$GITHUB_OUTPUT"
 
-  # Job 6: Create releases (one per plugin-version)
+  # Job 6: Create releases (one per plugin-version-platform)
   create-release:
-    name: Release ${{ matrix.plugin }} ${{ matrix.version }}
+    name: Release ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
     needs: [test, generate-release-matrix]
     if: needs.generate-release-matrix.outputs.has-releases == 'true'
     runs-on: ubuntu-24.04
@@ -617,9 +621,9 @@ jobs:
       - name: Check if release already exists
         id: check-tag
         run: |
-          TAG_NAME="${{ matrix.plugin }}-${{ matrix.version }}"
+          TAG_NAME="${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}"
 
-          # Check if tag exists (using plugin-version tag, not platform-specific)
+          # Check if tag exists for this specific platform
           if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME$"; then
             echo "Tag $TAG_NAME already exists, skipping release"
             echo "skip=true" >> $GITHUB_OUTPUT
@@ -630,28 +634,21 @@ jobs:
 
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
-      - name: Download all artifacts for this plugin-version
+      - name: Download artifact for this platform
         if: steps.check-tag.outputs.skip == 'false'
         uses: actions/download-artifact@v4
         with:
-          pattern: ${{ matrix.plugin }}-${{ matrix.version }}-*
-          path: artifacts
+          name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
+          path: artifacts/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
 
       - name: Create release archives
         if: steps.check-tag.outputs.skip == 'false'
         run: |
           mkdir -p release-files
-
-          # Create archives for each platform
-          cd artifacts
-          for dir in */; do
-            if [ -d "$dir" ]; then
-              artifact_name="${dir%/}"
-              echo "Creating archive for $artifact_name"
-              tar czf "../release-files/${artifact_name}.tar.gz" -C "$dir" .
-            fi
-          done
-          cd ..
+          ARTIFACT_DIR="artifacts/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}"
+          ARCHIVE_NAME="${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}"
+          echo "Creating archive for $ARCHIVE_NAME"
+          tar czf "release-files/${ARCHIVE_NAME}.tar.gz" -C "$ARTIFACT_DIR" .
 
           # List what we created
           echo "Release archives created:"
@@ -679,30 +676,26 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.check-tag.outputs.tag_name }}
-          name: ${{ matrix.plugin }} ${{ matrix.version }}
+          name: ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
           body: |
-            # ${{ matrix.plugin }} ${{ matrix.version }}
+            # ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
 
             ${{ steps.metadata.outputs.description }}
 
             ## Build Information
             - **Version**: ${{ matrix.version }}
+            - **Platform**: ${{ matrix.platform }}
             - **License**: ${{ steps.metadata.outputs.license }}
             - **Source Repository**: ${{ steps.metadata.outputs.repository }}
             - **Built on**: ${{ github.sha }}
 
-            ## Platforms
-            This release includes builds for:
-            - Linux (x86_64 glibc, x86_64 musl)
-            - macOS (x86_64 Intel, aarch64 Apple Silicon)
-
             ## Installation
-            Download the appropriate archive for your platform and extract the plugin file to your VapourSynth plugins directory.
+            Download the archive for this platform and extract the plugin file to your VapourSynth plugins directory.
 
             ---
             🤖 Automated build from commit ${{ github.sha }}
           draft: false
           prerelease: false
-          files: release-files/*.tar.gz
+          files: release-files/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
