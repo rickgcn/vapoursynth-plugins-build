@@ -97,6 +97,8 @@ RUN echo '/usr/local/lib' > /etc/ld.so.conf.d/local.conf && \
     echo '/usr/local/lib64' >> /etc/ld.so.conf.d/local.conf && \
     ldconfig
 
+RUN pip3 install --no-cache-dir pyyaml zstandard
+
 # Verify installation
 RUN python3 -c "import vapoursynth; print('VapourSynth version:', vapoursynth.core.version())"
 
