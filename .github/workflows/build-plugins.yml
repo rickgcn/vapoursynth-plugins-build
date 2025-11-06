@@ -332,34 +332,17 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           RUNNER: ${{ matrix.runner }}
           BUILD_STATUS: ${{ steps.build.conclusion }}
+          RESULT_FILE: build-status/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}.json
         run: |
           mkdir -p build-status
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          output = {
-              "plugin": os.environ["PLUGIN"],
-              "version": os.environ["VERSION"],
-              "platform": os.environ["PLATFORM"],
-              "runner": os.environ["RUNNER"],
-              "status": os.environ["BUILD_STATUS"],
-          }
-
-          Path("build-status").mkdir(parents=True, exist_ok=True)
-          with open("build-status/build-result.json", "w", encoding="utf-8") as fh:
-              json.dump(output, fh)
-
-          print("Recorded build result:", json.dumps(output))
-          PY
+          python3 scripts/record_build_result.py
 
       - name: Upload build result metadata
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-result-${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
-          path: build-status/build-result.json
+          path: build-status/${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}.json
           retention-days: 7
 
       - name: Fail if build step failed
@@ -410,40 +393,14 @@ jobs:
           fi
 
           # Generate full test matrix in JSON format
-          python scripts/generate_matrix.py --type test $PLUGINS_ARGS --output json > base_test_matrix.json
+          python3 scripts/generate_matrix.py --type test $PLUGINS_ARGS --output json > base_test_matrix.json
           mkdir -p build-results
 
           # Filter test matrix to include only successful builds
-          python3 - <<'PY'
-          import glob
-          import json
-          import os
-
-          with open("base_test_matrix.json", "r", encoding="utf-8") as fh:
-              base_matrix = json.load(fh)
-
-          success_keys = set()
-          for path in glob.glob(os.path.join("build-results", "**", "*.json"), recursive=True):
-              with open(path, "r", encoding="utf-8") as fh:
-                  data = json.load(fh)
-              if data.get("status") == "success":
-                  success_keys.add((data["plugin"], data["version"], data["platform"]))
-
-          filtered_matrix = [
-              entry for entry in base_matrix
-              if (entry["plugin"], entry["version"], entry["platform"]) in success_keys
-          ]
-
-          github_matrix = {"include": filtered_matrix}
-
-          print("Filtered test matrix:")
-          print(json.dumps(github_matrix, indent=2))
-
-          output_path = os.environ["GITHUB_OUTPUT"]
-          with open(output_path, "a", encoding="utf-8") as fh:
-              fh.write(f"has-tests={'true' if filtered_matrix else 'false'}\n")
-              fh.write("matrix=" + json.dumps(github_matrix) + "\n")
-          PY
+          python3 scripts/generate_test_matrix.py \
+            --base-matrix base_test_matrix.json \
+            --build-results-dir build-results \
+            --output "$GITHUB_OUTPUT"
 
   # Job 4: Test plugins using matrix
   test:
@@ -451,9 +408,7 @@ jobs:
     needs: [build, generate-test-matrix]
     if: |
       always() &&
-      needs.generate-test-matrix.outputs.has-tests == 'true' &&
-      needs.build.result != 'skipped' &&
-      needs.build.result != 'cancelled'
+      needs.generate-test-matrix.outputs.has-tests == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -518,6 +473,8 @@ jobs:
 
       # Run the test
       - name: Run test
+        id: run-test
+        continue-on-error: true
         shell: bash
         run: |
           if [[ "${{ matrix.platform }}" == linux-* ]]; then
@@ -545,6 +502,39 @@ jobs:
               --testdir "${{ runner.temp }}/test"
           fi
 
+      - name: Record test result
+        if: always()
+        env:
+          PLUGIN: ${{ matrix.plugin }}
+          VERSION: ${{ matrix.version }}
+          PLATFORM: ${{ matrix.platform }}
+          TEST_NAME: ${{ matrix.test_name }}
+          RUNNER: ${{ matrix.runner }}
+          TEST_STATUS: ${{ steps.run-test.conclusion }}
+          RESULT_PATH_FILE: ${{ runner.temp }}/test-result-path.txt
+        run: |
+          mkdir -p test-status
+          rm -f "$RESULT_PATH_FILE"
+          python3 scripts/record_test_result.py
+          if [ -f "$RESULT_PATH_FILE" ]; then
+            RESULT_FILE_PATH=$(cat "$RESULT_PATH_FILE")
+            if [ -n "$RESULT_FILE_PATH" ]; then
+              echo "TEST_RESULT_FILE=$RESULT_FILE_PATH" >> $GITHUB_ENV
+            fi
+          fi
+
+      - name: Upload test result metadata
+        if: always() && env.TEST_RESULT_FILE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-result-${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}-${{ matrix.test_name }}
+          path: ${{ env.TEST_RESULT_FILE }}
+          retention-days: 7
+
+      - name: Fail if test failed
+        if: steps.run-test.conclusion != 'success'
+        run: exit 1
+
   # Job 5: Generate release matrix (per plugin-version)
   generate-release-matrix:
     name: Generate Release Matrix
@@ -554,12 +544,6 @@ jobs:
     # Only run on push to main branch
     if: |
       always() &&
-      needs.build.result == 'success' &&
-      needs.generate-test-matrix.result == 'success' &&
-      (
-        needs.test.result == 'success' ||
-        needs.generate-test-matrix.outputs.has-tests == 'false'
-      ) &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -579,27 +563,34 @@ jobs:
         run: |
           pip install pyyaml
 
+      - name: Download build result metadata
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: build-result-*
+          path: release-info/build-results
+          merge-multiple: true
+
+      - name: Download test result metadata
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: test-result-*
+          path: release-info/test-results
+          merge-multiple: true
+
+      - name: Generate base test matrix
+        run: |
+          python3 scripts/generate_matrix.py --type test --output json > base_test_matrix.json
+
       - name: Generate release matrix
         id: generate
         run: |
-          # Generate unique plugin-version combinations
-          MATRIX=$(python scripts/generate_matrix.py --type build --output json | \
-            jq '[.[] | {plugin: .plugin, version: .version}] | unique')
-
-          # Check if matrix is empty
-          if echo "$MATRIX" | jq -e 'length > 0' > /dev/null; then
-            echo "has-releases=true" >> $GITHUB_OUTPUT
-          else
-            echo "has-releases=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Convert to GitHub Actions matrix format
-          GITHUB_MATRIX=$(echo "$MATRIX" | jq '{include: .}')
-          echo "matrix=$GITHUB_MATRIX" >> $GITHUB_OUTPUT
-
-          # Pretty print for logs
-          echo "Generated release matrix:"
-          echo "$GITHUB_MATRIX" | jq .
+          python3 scripts/generate_release_matrix.py \
+            --build-results-dir release-info/build-results \
+            --test-results-dir release-info/test-results \
+            --base-test-matrix base_test_matrix.json \
+            --output "$GITHUB_OUTPUT"
 
   # Job 6: Create releases (one per plugin-version)
   create-release:
