@@ -687,8 +687,6 @@ jobs:
           tag_name: ${{ steps.check-tag.outputs.tag_name }}
           name: ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
           body: |
-            # ${{ matrix.plugin }} ${{ matrix.version }} (${{ matrix.platform }})
-
             ${{ steps.metadata.outputs.description }}
 
             ## Build Information
