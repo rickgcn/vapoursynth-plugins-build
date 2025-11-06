@@ -51,7 +51,7 @@ releases:
           - cmd: sudo ninja -C build install
     artifacts:
       linux-.*:
-        - "{PREFIXDIR}/lib/libbestsource.so"
+        - "{PREFIXDIR}/lib/x86_64-linux-gnu/libbestsource.so"
       darwin-.*:
         - "{PREFIXDIR}/lib/libbestsource.dylib"
 tests:

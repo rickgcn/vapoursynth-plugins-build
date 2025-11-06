@@ -222,7 +222,9 @@ jobs:
           tar xf "$TOOLCHAIN_FILE"
 
           # Add toolchain bin to PATH (prepend to ensure priority)
-          export PATH="$HOME/x-tools/$TOOLCHAIN_SUBDIR/bin:$PATH"
+          export TOOLCHAIN_BIN="$HOME/x-tools/$TOOLCHAIN_SUBDIR/bin"
+          echo "PATH=$TOOLCHAIN_BIN:$PATH" >> $GITHUB_ENV
+          echo "$TOOLCHAIN_BIN" >> $GITHUB_PATH
 
           # List toolchain contents
           echo "Toolchain installed:"
@@ -486,7 +488,7 @@ jobs:
               -v "${{ runner.temp }}/artifacts":/artifacts \
               -v "$(pwd)":/src \
               ghcr.io/${REPO_OWNER}/vapoursynth-tester:${IMAGE_TAG} \
-              sh -c "set -euo; cd /src; python3 -m ensurepip --upgrade || true; python3 -m pip install --user --no-cache-dir --upgrade pip; python3 -m pip install --user --no-cache-dir pyyaml zstandard; python3 scripts/test.py \
+              bash -c "set -euo pipefail; cd /src; python3 scripts/test.py \
                 --plugin '${{ matrix.plugin }}' \
                 --version '${{ matrix.version }}' \
                 --platform '${{ matrix.platform }}' \
