@@ -486,7 +486,7 @@ jobs:
               -v "${{ runner.temp }}/artifacts":/artifacts \
               -v "$(pwd)":/src \
               ghcr.io/${REPO_OWNER}/vapoursynth-tester:${IMAGE_TAG} \
-              sh -c "python3 -m pip install --user --no-cache-dir pyyaml zstandard >/dev/null 2>&1 && cd /src && python3 scripts/test.py \
+              sh -c "cd /src && python3 -m pip install --user --no-cache-dir pyyaml zstandard >/dev/null 2>&1 && python3 scripts/test.py \
                 --plugin '${{ matrix.plugin }}' \
                 --version '${{ matrix.version }}' \
                 --platform '${{ matrix.platform }}' \

@@ -45,15 +45,15 @@ releases:
           LDFLAGS: "-Wl,-Bsymbolic"
         commands:
           - cwd: "{WORKDIR}/bestsource"
-            cmd: git submodule update --init --recursive libp2p
+            cmd: git submodule update --init --recursive
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release
           - cmd: ninja -C build
           - cmd: sudo ninja -C build install
     artifacts:
       linux-.*:
-        - "{PREFIXDIR}/lib/bestsource.so"
+        - "{PREFIXDIR}/lib/vapoursynth/bestsource.so"
       darwin-.*:
-        - "{PREFIXDIR}/lib/bestsource.dylib"
+        - "{PREFIXDIR}/lib/vapoursynth/bestsource.dylib"
 tests:
   - name: av1-test
     attachments:
