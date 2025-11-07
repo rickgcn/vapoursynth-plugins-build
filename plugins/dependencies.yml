@@ -84,7 +84,7 @@ dependencies:
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/xxHash-0.8.3"
                 cmd: make libxxhash.a libxxhash.pc
-              - cmd: make install_libxxhash.a install_libxxhash.includes install_libxxhash.pc
+              - cmd: make install_libxxhash.a install_libxxhash.includes install_libxxhash.pc DESTDIR={SYSROOT}
 
   Little-CMS:
     repository: https://github.com/mm2/Little-CMS.git
