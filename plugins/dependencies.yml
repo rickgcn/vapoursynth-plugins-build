@@ -114,12 +114,14 @@ dependencies:
               - cmd: make -j{NPROC}
               - cmd: make install
           "linux-x86_64-glibc":
+            env:
+              LIBS: -lm
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
                 cmd: ./autogen.sh --host={TARGET_TRIPLET}
-              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET} --enable-static --disable-shared --extra-libs=-lm
+              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET} --enable-static --disable-shared
               - cmd: make -j{NPROC}
               - cmd: make install
 
