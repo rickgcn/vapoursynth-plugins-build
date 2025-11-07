@@ -294,6 +294,17 @@ jobs:
             --workdir "${{ runner.temp }}/build" \
             $PREFIXDIR_ARG | tee build_output.log
 
+      # Upload build logs on failure
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}-logs
+          path: |
+            build_output.log
+            ${{ runner.temp }}/build/**/config.log
+          retention-days: 7
+
       # Collect artifacts from YAML-defined paths
       - name: Collect artifacts
         id: artifacts
