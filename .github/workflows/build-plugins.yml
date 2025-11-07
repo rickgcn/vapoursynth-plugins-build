@@ -277,7 +277,6 @@ jobs:
       - name: Build plugin
         id: build
         shell: bash
-        continue-on-error: true
         run: |
           # Set PREFIXDIR argument if defined
           if [ -n "$PREFIXDIR" ]; then
@@ -292,7 +291,22 @@ jobs:
             --version "${{ matrix.version }}" \
             --platform "${{ matrix.platform }}" \
             --workdir "${{ runner.temp }}/build" \
-            $PREFIXDIR_ARG | tee build_output.log
+            $PREFIXDIR_ARG 2>&1 | tee /tmp/build_output.log
+
+          # Create artifacts directory
+          mkdir -p /tmp/artifacts
+
+          # Extract artifact paths from build output
+          # Look for lines after "ARTIFACTS:" marker
+          sed -n '/^ARTIFACTS:$/,$ p' /tmp/build_output.log | tail -n +2 | grep -v '^$' | while read -r artifact_path; do
+            if [ -f "$artifact_path" ]; then
+              # Use cp -L to dereference symlinks and copy actual files
+              cp -L "$artifact_path" /tmp/artifacts/
+              echo "Copied: $artifact_path (dereferencing symlinks)"
+            else
+              echo "Warning: Artifact not found: $artifact_path"
+            fi
+          done
 
       # Upload build logs on failure
       - name: Upload build logs
@@ -301,41 +315,15 @@ jobs:
         with:
           name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}-logs
           path: |
-            build_output.log
-            ${{ runner.temp }}/build/**/config.log
+            ${{ runner.temp }}/build/**/*.log
           retention-days: 7
-
-      # Collect artifacts from YAML-defined paths
-      - name: Collect artifacts
-        id: artifacts
-        if: steps.build.outcome == 'success'
-        shell: bash
-        run: |
-          # Create artifacts directory
-          mkdir -p artifacts
-
-          # Extract artifact paths from build output
-          # Look for lines after "ARTIFACTS:" marker
-          sed -n '/^ARTIFACTS:$/,$ p' build_output.log | tail -n +2 | grep -v '^$' | while read -r artifact_path; do
-            if [ -f "$artifact_path" ]; then
-              # Use cp -L to dereference symlinks and copy actual files
-              cp -L "$artifact_path" artifacts/
-              echo "Copied: $artifact_path (dereferencing symlinks)"
-            else
-              echo "Warning: Artifact not found: $artifact_path"
-            fi
-          done
-
-          # List what we collected
-          echo "Artifacts collected:"
-          ls -lh artifacts/
 
       - name: Upload artifacts
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}
-          path: artifacts/
+          path: /tmp/artifacts/
           retention-days: 7
 
       - name: Record build result
