@@ -29,7 +29,7 @@ releases:
           - cmd: sudo make install
       linux-.*:
         env:
-          LDFLAGS: "-Wl,-Bsymbolic"
+          LDFLAGS: "-static-libatomic"
         commands:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}

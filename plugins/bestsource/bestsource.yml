@@ -29,11 +29,13 @@ releases:
           - cmd: ninja -C build
           - cmd: sudo ninja -C build install
       linux-.*:
-        env:
-          LDFLAGS: "-Wl,-Bsymbolic"
         commands:
           - cwd: "{WORKDIR}/bestsource"
             cmd: git submodule update --init --recursive
+          - cmd: >
+              bash -c "if ! grep -q '#include <cinttypes>' src/bsshared.cpp; then
+              sed -i '/#include <libavutil\/avutil.h>/a #include <cinttypes>' src/bsshared.cpp;
+              fi"
           - cmd: sed -i 's/library(\x27libbestsource\x27/static_library(\x27libbestsource\x27/' meson.build
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --cross-file {MESON_CROSS_FILE}
           - cmd: ninja -C build
