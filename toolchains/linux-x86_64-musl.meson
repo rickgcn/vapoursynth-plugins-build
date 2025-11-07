@@ -23,4 +23,3 @@ endian = 'little'
 
 [properties]
 sys_root = '/home/runner/x-tools/x86_64-unknown-linux-musl/x86_64-unknown-linux-musl/sysroot'
-pkg_config_path = 'sys_root + "/usr/local/lib/pkgconfig"'
