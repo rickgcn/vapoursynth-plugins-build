@@ -105,7 +105,7 @@ class DependencyBuilder:
 
             # Create a new DependencyBuilder for the sub-dependency
             sub_dep_builder = DependencyBuilder(
-                str(self.workdir / sub_dep_name),
+                str(self.workdir),
                 self.prefixdir,
                 self.platform,
                 self.nproc,
