@@ -28,6 +28,7 @@ dependencies:
                 cmd: ./autogen.sh
               - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET}
               - cmd: make -j${NPROC}
+              - cmd: env
               - cmd: sudo make install
 
   vapoursynth:
