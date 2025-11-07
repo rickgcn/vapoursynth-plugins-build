@@ -24,6 +24,12 @@ class PlatformMatcher:
         'darwin-aarch64'
     ]
 
+    # Mapping from platform name to actual toolchain triplet
+    PLATFORM_TO_TRIPLET = {
+        'linux-x86_64-musl': 'x86_64-unknown-linux-musl',
+        'linux-x86_64-glibc': 'x86_64-unknown-linux-gnu',
+    }
+
     @staticmethod
     def match(pattern: str, platform: str) -> bool:
         """
@@ -181,6 +187,26 @@ class YAMLLoader:
 
         return sorted(plugins)
 
+    @staticmethod
+    def load_toolchains_config(plugins_dir: str = 'plugins') -> Dict[str, Any]:
+        """
+        Load toolchain configuration from toolchains.yml.
+
+        Args:
+            plugins_dir: Directory containing plugin configs
+
+        Returns:
+            Parsed toolchain configuration or empty dict if not found
+        """
+        toolchains_path = Path(plugins_dir) / 'toolchains.yml'
+
+        if not toolchains_path.exists():
+            print(f"Warning: toolchains.yml not found at {toolchains_path}")
+            return {}
+
+        with open(toolchains_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f)
+
 
 class FileDownloader:
     """Download and verify files."""
@@ -284,6 +310,228 @@ class BuildConfigResolver:
             if PlatformMatcher.match(pattern, platform):
                 return dep_list
         return []
+
+
+class CrossCompilingToolchainManager:
+    """
+    Manage cross-compilation toolchains for different platforms.
+    Provides methods to get toolchain paths, environment variables, and build commands.
+    """
+
+    # Default toolchain base path
+    DEFAULT_TOOLCHAIN_PATH = os.path.expanduser('~/x-tools')
+    _toolchain_config_cache = None
+
+    @classmethod
+    def _get_toolchain_config(cls) -> Dict[str, Any]:
+        """
+        Load and cache toolchain configuration from toolchains.yml.
+
+        Returns:
+            Toolchain configuration dict
+        """
+        if cls._toolchain_config_cache is None:
+            plugins_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'plugins')
+            cls._toolchain_config_cache = YAMLLoader.load_toolchains_config(plugins_dir)
+        return cls._toolchain_config_cache.get('toolchains', {})
+
+    @classmethod
+    def get_toolchain_config(cls, platform: str) -> Optional[Dict[str, Any]]:
+        """
+        Get toolchain configuration for a specific platform.
+
+        Args:
+            platform: Platform name (e.g., 'linux-x86_64-musl')
+
+        Returns:
+            Toolchain configuration dict or None
+        """
+        toolchain_config = cls._get_toolchain_config()
+        return toolchain_config.get(platform)
+
+    @staticmethod
+    def get_toolchain_triplet(platform: str) -> Optional[str]:
+        """
+        Get the actual toolchain triplet for a given platform.
+
+        Args:
+            platform: Platform name (e.g., 'linux-x86_64-musl')
+
+        Returns:
+            Toolchain triplet (e.g., 'x86_64-unknown-linux-musl') or None if not a cross-compilation platform
+        """
+        config = CrossCompilingToolchainManager.get_toolchain_config(platform)
+        return config.get('triplet') if config else None
+
+    @staticmethod
+    def get_toolchain_bin_path(platform: str) -> Optional[str]:
+        """
+        Get the toolchain binary directory path for a platform.
+
+        Args:
+            platform: Platform name
+
+        Returns:
+            Path to toolchain bin directory or None
+        """
+        config = CrossCompilingToolchainManager.get_toolchain_config(platform)
+        if not config:
+            return None
+
+        bin_path = config.get('bin_path')
+        if bin_path:
+            return os.path.expanduser(bin_path)
+
+        return None
+
+    @staticmethod
+    def get_sysroot_path(platform: str) -> Optional[str]:
+        """
+        Get the sysroot path for a platform.
+
+        Args:
+            platform: Platform name
+
+        Returns:
+            Sysroot path or None
+        """
+        config = CrossCompilingToolchainManager.get_toolchain_config(platform)
+        if not config:
+            return None
+
+        sysroot = config.get('sysroot')
+        if sysroot:
+            return os.path.expanduser(sysroot)
+
+        return None
+
+    @staticmethod
+    def get_toolchain_env_vars(platform: str, static_linking: bool = True) -> Dict[str, str]:
+        """
+        Get environment variables for cross-compilation.
+
+        Args:
+            platform: Target platform
+            static_linking: Whether to use static linking (default: True)
+
+        Returns:
+            Dictionary of environment variables
+        """
+        config = CrossCompilingToolchainManager.get_toolchain_config(platform)
+        if not config:
+            return {}
+
+        env = {}
+        binaries = config.get('binaries', {})
+
+        # Set compiler and tool variables from config
+        for key, value in binaries.items():
+            env[key.upper()] = value
+
+        # Add SYSROOT
+        sysroot = CrossCompilingToolchainManager.get_sysroot_path(platform)
+        if sysroot:
+            env['SYSROOT'] = sysroot
+
+        # Set flags with sysroot
+        if sysroot:
+            env['CFLAGS'] = f'--sysroot={sysroot}'
+            env['CXXFLAGS'] = f'--sysroot={sysroot}'
+            env['LDFLAGS'] = f'--sysroot={sysroot}'
+
+        return env
+
+    @staticmethod
+    def get_meson_cross_file(platform: str, toolchains_dir: str = 'toolchains') -> Optional[str]:
+        """
+        Get the path to meson cross file for a platform.
+
+        Args:
+            platform: Platform name
+            toolchains_dir: Directory containing toolchain config files
+
+        Returns:
+            Path to meson cross file or None
+        """
+        config = CrossCompilingToolchainManager.get_toolchain_config(platform)
+        if not config:
+            return None
+
+        files = config.get('files', {})
+        meson_file = files.get('meson')
+
+        if meson_file:
+            # Check if absolute path, if not, make it relative to project root
+            if not os.path.isabs(meson_file):
+                project_root = os.path.dirname(os.path.dirname(__file__))
+                meson_file = os.path.join(project_root, meson_file)
+
+            if os.path.exists(meson_file):
+                return meson_file
+
+        return None
+
+    @staticmethod
+    def get_cmake_toolchain_file(platform: str, toolchains_dir: str = 'toolchains') -> Optional[str]:
+        """
+        Get the path to cmake toolchain file for a platform.
+
+        Args:
+            platform: Platform name
+            toolchains_dir: Directory containing toolchain config files
+
+        Returns:
+            Path to cmake toolchain file or None
+        """
+        config = CrossCompilingToolchainManager.get_toolchain_config(platform)
+        if not config:
+            return None
+
+        files = config.get('files', {})
+        cmake_file = files.get('cmake')
+
+        if cmake_file:
+            # Check if absolute path, if not, make it relative to project root
+            if not os.path.isabs(cmake_file):
+                project_root = os.path.dirname(os.path.dirname(__file__))
+                cmake_file = os.path.join(project_root, cmake_file)
+
+            if os.path.exists(cmake_file):
+                return cmake_file
+
+        return None
+
+    @staticmethod
+    def update_build_env(build_env: Dict[str, str], platform: str,
+                        toolchains_dir: str = 'toolchains',
+                        static_linking: bool = True) -> None:
+        """
+        Update build environment with cross-compilation toolchain variables.
+
+        Args:
+            build_env: Build environment dictionary to update
+            platform: Target platform
+            toolchains_dir: Directory containing toolchain config files
+            static_linking: Whether to use static linking
+        """
+        toolchain_env = CrossCompilingToolchainManager.get_toolchain_env_vars(
+            platform, static_linking)
+
+        for key, value in toolchain_env.items():
+            if key in build_env:
+                # Append if already exists
+                if value and build_env[key]:
+                    build_env[key] = f"{build_env[key]} {value}"
+            else:
+                build_env[key] = value
+
+        # Add toolchain bin to PATH
+        bin_path = CrossCompilingToolchainManager.get_toolchain_bin_path(platform)
+        if bin_path:
+            if 'PATH' in build_env:
+                build_env['PATH'] = f"{bin_path}:{build_env['PATH']}"
+            else:
+                build_env['PATH'] = bin_path
 
 
 def create_attachment_files(attachments: Dict[str, Any], env: Dict[str, str]) -> None:

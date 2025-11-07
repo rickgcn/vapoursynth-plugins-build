@@ -1,0 +1,60 @@
+# Toolchain configuration for cross-compilation
+# This file defines toolchain triplets, paths, and binaries
+
+# Toolchain configuration per platform
+toolchains:
+  linux-x86_64-musl:
+    # Toolchain triplet
+    triplet: x86_64-unknown-linux-musl
+
+    # Paths
+    toolchain_root: ~/x-tools/x86_64-unknown-linux-musl
+    bin_path: ~/x-tools/x86_64-unknown-linux-musl/bin
+    sysroot: ~/x-tools/x86_64-unknown-linux-musl/x86_64-unknown-linux-musl/sysroot
+
+    # Compiler binaries (just the tool names, not full paths)
+    binaries:
+      cc: x86_64-unknown-linux-musl-gcc
+      cxx: x86_64-unknown-linux-musl-g++
+      ar: x86_64-unknown-linux-musl-ar
+      as: x86_64-unknown-linux-musl-as
+      ranlib: x86_64-unknown-linux-musl-ranlib
+      strip: x86_64-unknown-linux-musl-strip
+      ld: x86_64-unknown-linux-musl-ld
+      nm: x86_64-unknown-linux-musl-nm
+      objcopy: x86_64-unknown-linux-musl-objcopy
+      objdump: x86_64-unknown-linux-musl-objdump
+      size: x86_64-unknown-linux-musl-size
+
+    # File paths for toolchain config files
+    files:
+      meson: toolchains/linux-x86_64-musl.meson
+      cmake: toolchains/linux-x86_64-musl.cmake
+
+  linux-x86_64-glibc:
+    # Toolchain triplet
+    triplet: x86_64-unknown-linux-gnu
+
+    # Paths
+    toolchain_root: ~/x-tools/x86_64-unknown-linux-gnu
+    bin_path: ~/x-tools/x86_64-unknown-linux-gnu/bin
+    sysroot: ~/x-tools/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/sysroot
+
+    # Compiler binaries (just the tool names, not full paths)
+    binaries:
+      cc: x86_64-unknown-linux-gnu-gcc
+      cxx: x86_64-unknown-linux-gnu-g++
+      ar: x86_64-unknown-linux-gnu-ar
+      as: x86_64-unknown-linux-gnu-as
+      ranlib: x86_64-unknown-linux-gnu-ranlib
+      strip: x86_64-unknown-linux-gnu-strip
+      ld: x86_64-unknown-linux-gnu-ld
+      nm: x86_64-unknown-linux-gnu-nm
+      objcopy: x86_64-unknown-linux-gnu-objcopy
+      objdump: x86_64-unknown-linux-gnu-objdump
+      size: x86_64-unknown-linux-gnu-size
+
+    # File paths for toolchain config files
+    files:
+      meson: toolchains/linux-x86_64-glibc.meson
+      cmake: toolchains/linux-x86_64-glibc.cmake

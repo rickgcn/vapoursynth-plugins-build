@@ -1,0 +1,26 @@
+[binaries]
+# Cross-compilation toolchain binaries
+# Platform: linux-x86_64-glibc
+# Triplet: x86_64-unknown-linux-gnu
+c = 'x86_64-unknown-linux-gnu-gcc'
+cpp = 'x86_64-unknown-linux-gnu-g++'
+ar = 'x86_64-unknown-linux-gnu-ar'
+as = 'x86_64-unknown-linux-gnu-as'
+ranlib = 'x86_64-unknown-linux-gnu-ranlib'
+strip = 'x86_64-unknown-linux-gnu-strip'
+ld = 'x86_64-unknown-linux-gnu-ld'
+objcopy = 'x86_64-unknown-linux-gnu-objcopy'
+objdump = 'x86_64-unknown-linux-gnu-objdump'
+size = 'x86_64-unknown-linux-gnu-size'
+nm = 'x86_64-unknown-linux-gnu-nm'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+
+[paths]
+# Sysroot for cross-compilation
+# Location: ~/x-tools/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/sysroot
+sys_root = '/home/runner/x-tools/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/sysroot'
