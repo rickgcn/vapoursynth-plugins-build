@@ -29,7 +29,7 @@ releases:
           - cmd: sudo make install
       linux-.*:
         env:
-          LIBS: -latomic
+          LDFLAGS: -latomic
         commands:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}
