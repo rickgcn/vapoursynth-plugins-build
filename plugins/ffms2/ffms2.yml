@@ -37,7 +37,7 @@ releases:
             cmd: ./autogen.sh --host={TARGET_TRIPLET}
           - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET}
           - cmd: make -j{NPROC}
-          - cmd: sudo make install
+          - cmd: make install
     artifacts:
       linux-.*:
         - "{PREFIXDIR}/lib/libffms2.so"
