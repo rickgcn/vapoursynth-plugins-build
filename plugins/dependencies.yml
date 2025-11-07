@@ -11,13 +11,22 @@ dependencies:
         source: https://github.com/sekrit-twc/zimg/archive/refs/tags/release-3.0.6.tar.gz
         hash: sha256sum:be89390f13a5c9b2388ce0f44a5e89364a20c1c57ce46d382b1fcc3967057577
         build:
-          "(linux|darwin)-.*":
+          "darwin-.*":
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/zimg-release-3.0.6"
                 cmd: ./autogen.sh
               - cmd: ./configure --prefix={PREFIXDIR}
+              - cmd: make -j${NPROC}
+              - cmd: sudo make install
+          "linux-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/zimg-release-3.0.6"
+                cmd: ./autogen.sh
+              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET}
               - cmd: make -j${NPROC}
               - cmd: sudo make install
 
@@ -34,13 +43,22 @@ dependencies:
             - name: zimg
               version: "3.0.6"
         build:
-          "(linux|darwin)-.*":
+          "darwin-.*":
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/vapoursynth-R72"
                 cmd: ./autogen.sh
               - cmd: ./configure --prefix={PREFIXDIR} --disable-x86-asm --disable-vsscript --disable-vspipe --disable-python-module
+              - cmd: make -j${NPROC}
+              - cmd: sudo make install
+          "linux-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/vapoursynth-R72"
+                cmd: ./autogen.sh
+              - cmd: ./configure --prefix={PREFIXDIR} --disable-x86-asm --disable-vsscript --disable-vspipe --disable-python-module --host={TARGET_TRIPLET}
               - cmd: make -j${NPROC}
               - cmd: sudo make install
 
@@ -70,13 +88,22 @@ dependencies:
         source: https://github.com/mm2/Little-CMS/archive/refs/tags/lcms2.17.tar.gz
         hash: sha256sum:6e6f6411db50e85ae8ff7777f01b2da0614aac13b7b9fcbea66dc56a1bc71418
         build:
-          "(linux|darwin)-.*":
+          "darwin-.*":
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
                 cmd: ./autogen.sh
               - cmd: ./configure --prefix={PREFIXDIR}
+              - cmd: make -j{NPROC}
+              - cmd: sudo make install
+          "linux-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
+                cmd: ./autogen.sh
+              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET}
               - cmd: make -j{NPROC}
               - cmd: sudo make install
 
@@ -107,12 +134,20 @@ dependencies:
         source: https://code.videolan.org/videolan/dav1d/-/archive/1.5.2/dav1d-1.5.2.tar.gz
         hash: sha256sum:2fc0810b4cdf72784b3c107827ff10b1d83ec709a1ec1fbdbc6a932daf65ead6
         build:
-          "(linux|darwin)-.*":
+          "darwin-.*":
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/dav1d-1.5.2"
                 cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --default-library=static
+              - cmd: ninja -C build
+              - cmd: sudo ninja -C build install
+          "linux-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/dav1d-1.5.2"
+                cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --default-library=static --cross-file {MESON_CROSS_FILE}
               - cmd: ninja -C build
               - cmd: sudo ninja -C build install
 
@@ -125,12 +160,20 @@ dependencies:
         source: https://ffmpeg.org/releases/ffmpeg-6.1.3.tar.gz
         hash: sha256sum:3be466dfd1a312d752c20ece5b413248a5808fba3c967da0624bac48a4380857
         build:
-          "(linux|darwin)-.*":
+          "darwin-.*":
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/ffmpeg-6.1.3"
                 cmd: ./configure --prefix={PREFIXDIR} --enable-gpl --enable-version3 --disable-programs --disable-doc --enable-static --disable-shared --enable-pic --disable-encoders --enable-libdav1d --disable-muxers --disable-debug
+              - cmd: make -j{NPROC}
+              - cmd: sudo make install
+          "linux-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/ffmpeg-6.1.3"
+                cmd: ./configure --prefix={PREFIXDIR} --enable-gpl --enable-version3 --disable-programs --disable-doc --enable-static --disable-shared --enable-pic --disable-encoders --enable-libdav1d --disable-muxers --disable-debug --enable-cross-compile --target-os=linux --arch=x86_64
               - cmd: make -j{NPROC}
               - cmd: sudo make install
       "7.1.2-with-Little-CMS":
@@ -142,11 +185,19 @@ dependencies:
             - name: Little-CMS
               version: "2.17"
         build:
-          "(linux|darwin)-.*":
+          "darwin-.*":
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/ffmpeg-7.1.2"
                 cmd: ./configure --prefix={PREFIXDIR} --enable-gpl --enable-version3 --disable-programs --disable-doc --enable-static --disable-shared --enable-pic --disable-encoders --enable-libdav1d --enable-lcms2 --disable-muxers --disable-debug
+              - cmd: make -j{NPROC}
+              - cmd: sudo make install
+          "linux-.*":
+            commands:
+              - cwd: "{WORKDIR}"
+                cmd: tar xf {DL_FILE_NAME}
+              - cwd: "{WORKDIR}/ffmpeg-7.1.2"
+                cmd: ./configure --prefix={PREFIXDIR} --enable-gpl --enable-version3 --disable-programs --disable-doc --enable-static --disable-shared --enable-pic --disable-encoders --enable-libdav1d --enable-lcms2 --disable-muxers --disable-debug --enable-cross-compile --target-os=linux --arch=x86_64
               - cmd: make -j{NPROC}
               - cmd: sudo make install

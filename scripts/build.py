@@ -269,31 +269,6 @@ class DependencyBuilder:
             cmd = EnvironmentManager.substitute_vars(cmd, self.env)
             cwd = EnvironmentManager.substitute_vars(current_cwd, self.env)
 
-            # Auto-add cross-compilation file for meson setup commands
-            if 'meson setup' in cmd and '--cross-file' not in cmd:
-                from utils import CrossCompilingToolchainManager
-                toolchains_dir = str(Path(__file__).parent.parent / 'toolchains')
-                cross_file = CrossCompilingToolchainManager.get_meson_cross_file(
-                    self.platform, toolchains_dir
-                )
-                if cross_file:
-                    # Add --cross-file parameter to meson setup command
-                    cmd = cmd.replace('meson setup', f'meson setup --cross-file {cross_file}')
-
-            # Auto-add toolchain file for cmake initial configuration
-            # Match patterns like: "cmake -S . -B build" or "cmake ."
-            if ('cmake' in cmd and
-                '-S' in cmd and '-B' in cmd and
-                '-DCMAKE_TOOLCHAIN_FILE=' not in cmd):
-                from utils import CrossCompilingToolchainManager
-                toolchains_dir = str(Path(__file__).parent.parent / 'toolchains')
-                toolchain_file = CrossCompilingToolchainManager.get_cmake_toolchain_file(
-                    self.platform, toolchains_dir
-                )
-                if toolchain_file:
-                    # Add -DCMAKE_TOOLCHAIN_FILE parameter to cmake command
-                    cmd = f"{cmd} -DCMAKE_TOOLCHAIN_FILE={toolchain_file}"
-
             print(f"\n[{cwd}]$ {cmd}")
 
             # Execute command

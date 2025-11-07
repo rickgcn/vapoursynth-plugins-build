@@ -20,7 +20,7 @@ cpu_family = 'x86_64'
 cpu = 'x86_64'
 endian = 'little'
 
-[paths]
+[properties]
 # Sysroot for cross-compilation
 # Location: ~/x-tools/x86_64-unknown-linux-musl/x86_64-unknown-linux-musl/sysroot
 sys_root = '/home/runner/x-tools/x86_64-unknown-linux-musl/x86_64-unknown-linux-musl/sysroot'

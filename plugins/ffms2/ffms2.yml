@@ -35,7 +35,7 @@ releases:
             cmd: tar xf {DL_FILE_NAME}
           - cwd: "{WORKDIR}/ffms2-5.0"
             cmd: ./autogen.sh
-          - cmd: ./configure --prefix={PREFIXDIR}
+          - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET}
           - cmd: make -j{NPROC}
           - cmd: sudo make install
     artifacts:

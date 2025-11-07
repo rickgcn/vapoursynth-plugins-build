@@ -95,6 +95,20 @@ class EnvironmentManager:
         if 'SYSROOT' in os.environ:
             env['SYSROOT'] = os.environ['SYSROOT']
 
+        # Add cross-compilation toolchain file paths
+        meson_file = CrossCompilingToolchainManager.get_meson_cross_file(platform)
+        if meson_file:
+            env['MESON_CROSS_FILE'] = meson_file
+
+        cmake_file = CrossCompilingToolchainManager.get_cmake_toolchain_file(platform)
+        if cmake_file:
+            env['CMAKE_TOOLCHAIN_FILE'] = cmake_file
+
+        # Add target triplet for configure --host
+        triplet = CrossCompilingToolchainManager.get_toolchain_triplet(platform)
+        if triplet:
+            env['TARGET_TRIPLET'] = triplet
+
         return env
 
     @staticmethod
