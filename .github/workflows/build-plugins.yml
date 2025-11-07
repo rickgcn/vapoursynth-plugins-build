@@ -231,8 +231,19 @@ jobs:
 
           # Add toolchain bin to PATH (prepend to ensure priority)
           export TOOLCHAIN_BIN="$HOME/x-tools/$TOOLCHAIN_SUBDIR/bin"
+          chmod -R u+w "$TOOLCHAIN_BIN"
           echo "PATH=$TOOLCHAIN_BIN:$PATH" >> $GITHUB_ENV
           echo "$TOOLCHAIN_BIN" >> $GITHUB_PATH
+
+          # Create triplet-prefixed pkg-config shim expected by FFmpeg
+          HOST_PKG_CONFIG_PATH="$(command -v pkg-config || true)"
+          if [[ -n "$HOST_PKG_CONFIG_PATH" ]]; then
+            TARGET_PKG_CONFIG="$TOOLCHAIN_BIN/${TOOLCHAIN_SUBDIR}-pkg-config"
+            ln -sf "$HOST_PKG_CONFIG_PATH" "$TARGET_PKG_CONFIG"
+            echo "Linked pkg-config shim at $TARGET_PKG_CONFIG"
+          else
+            echo "Warning: pkg-config not found on host PATH; cannot create shim" >&2
+          fi
 
       # Platform-specific setup for macOS
       - name: Setup macOS build environment
