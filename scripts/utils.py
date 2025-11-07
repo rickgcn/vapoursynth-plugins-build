@@ -94,6 +94,34 @@ class EnvironmentManager:
         if 'SYSROOT' in os.environ:
             env['SYSROOT'] = os.environ['SYSROOT']
 
+        # Ensure pkg-config can locate libraries installed into the prefix/sysroot
+        pkg_config_paths = []
+        prefix_path = env.get('PREFIXDIR')
+        if prefix_path:
+            for subdir in ('lib/pkgconfig', 'lib64/pkgconfig', 'share/pkgconfig', 'libdata/pkgconfig'):
+                pkg_config_paths.append(os.path.join(prefix_path, subdir))
+
+        sysroot_path = env.get('SYSROOT')
+        if sysroot_path:
+            for subdir in ('usr/lib/pkgconfig', 'usr/lib64/pkgconfig', 'usr/share/pkgconfig', 'usr/libdata/pkgconfig'):
+                pkg_config_paths.append(os.path.join(sysroot_path, subdir))
+
+        existing_pkg_config = os.environ.get('PKG_CONFIG_PATH')
+        if existing_pkg_config:
+            pkg_config_paths.append(existing_pkg_config)
+
+        # Remove duplicates while preserving order
+        seen_paths = set()
+        ordered_paths = []
+        for path in pkg_config_paths:
+            if not path or path in seen_paths:
+                continue
+            seen_paths.add(path)
+            ordered_paths.append(path)
+
+        if ordered_paths:
+            env['PKG_CONFIG_PATH'] = ':'.join(ordered_paths)
+
         # Add cross-compilation toolchain file paths
         meson_file = CrossCompilingToolchainManager.get_meson_cross_file(platform)
         if meson_file:
