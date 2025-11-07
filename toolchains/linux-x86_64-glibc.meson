@@ -13,15 +13,10 @@ objcopy = 'x86_64-unknown-linux-gnu-objcopy'
 objdump = 'x86_64-unknown-linux-gnu-objdump'
 size = 'x86_64-unknown-linux-gnu-size'
 nm = 'x86_64-unknown-linux-gnu-nm'
-pkgconfig = 'pkg-config'
+pkg-config = 'pkg-config'
 
 [host_machine]
 system = 'linux'
 cpu_family = 'x86_64'
 cpu = 'x86_64'
 endian = 'little'
-
-[properties]
-# Sysroot for cross-compilation
-# Location: ~/x-tools/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/sysroot
-sys_root = '/home/runner/x-tools/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/sysroot'
