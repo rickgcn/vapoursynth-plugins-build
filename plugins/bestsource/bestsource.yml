@@ -37,7 +37,7 @@ releases:
           - cmd: sed -i 's/library(\x27libbestsource\x27/static_library(\x27libbestsource\x27/' meson.build
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --cross-file {MESON_CROSS_FILE}
           - cmd: ninja -C build
-          - cmd: sudo ninja -C build install
+          - cmd: ninja -C build install
     artifacts:
       linux-.*:
         - "{PREFIXDIR}/lib/vapoursynth/bestsource.so"
