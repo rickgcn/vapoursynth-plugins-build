@@ -86,7 +86,13 @@ class EnvironmentManager:
         # Set PREFIXDIR based on platform
         if prefixdir:
             env['PREFIXDIR'] = prefixdir
-        elif platform.startswith('linux') or platform.startswith('darwin-x86_64'):
+        elif platform.startswith('linux'):
+            # For Linux cross-compilation, use sysroot/usr/local
+            if 'SYSROOT' in os.environ:
+                env['PREFIXDIR'] = os.environ['SYSROOT'] + '/usr/local'
+            else:
+                env['PREFIXDIR'] = '/usr/local'
+        elif platform.startswith('darwin-x86_64'):
             env['PREFIXDIR'] = '/usr/local'
         elif platform.startswith('darwin-aarch64'):
             env['PREFIXDIR'] = '/opt/homebrew'
