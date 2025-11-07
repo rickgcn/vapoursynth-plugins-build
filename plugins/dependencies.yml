@@ -110,7 +110,7 @@ dependencies:
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
                 cmd: ./autogen.sh
-              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET}
+              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET} --enable-static --disable-shared
               - cmd: make -j{NPROC}
               - cmd: make install
 
