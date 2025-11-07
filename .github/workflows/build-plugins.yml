@@ -226,8 +226,9 @@ jobs:
           export SYSROOT="$TOOLCHAIN_ROOT/$TOOLCHAIN_SUBDIR/sysroot"
           echo "SYSROOT=$SYSROOT" >> $GITHUB_ENV
 
-          # Make /usr/local writable for installation without sudo
-          sudo chmod -R 777 /usr/local
+          # Create sysroot directory structure and make it writable
+          sudo mkdir -p "$SYSROOT/usr/local/lib" "$SYSROOT/usr/local/include" "$SYSROOT/usr/local/bin"
+          sudo chmod -R u+w "$SYSROOT"
 
           # Add toolchain bin to PATH (prepend to ensure priority)
           export TOOLCHAIN_BIN="$HOME/x-tools/$TOOLCHAIN_SUBDIR/bin"
