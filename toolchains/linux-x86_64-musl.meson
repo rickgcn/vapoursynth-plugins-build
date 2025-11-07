@@ -13,6 +13,7 @@ objcopy = 'x86_64-unknown-linux-musl-objcopy'
 objdump = 'x86_64-unknown-linux-musl-objdump'
 size = 'x86_64-unknown-linux-musl-size'
 nm = 'x86_64-unknown-linux-musl-nm'
+pkgconfig = 'pkg-config'
 
 [host_machine]
 system = 'linux'
