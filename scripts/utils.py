@@ -78,9 +78,16 @@ class EnvironmentManager:
             Dictionary of environment variables
         """
         import os
+        from pathlib import Path
+
+        # Set INSTALLDIR to a common global directory
+        # Use workdir's parent/parent/install for all dependencies
+        workdir_path = Path(workdir)
+        install_dir = workdir_path.parent.parent / 'install'
 
         env = {
             'WORKDIR': workdir,
+            'INSTALLDIR': str(install_dir),
         }
 
         # Set PREFIXDIR based on platform
