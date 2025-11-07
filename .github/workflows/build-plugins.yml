@@ -276,9 +276,10 @@ jobs:
         run: |
           if [[ "${{ matrix.platform }}" == darwin-aarch64 ]]; then
             echo "PREFIXDIR=/opt/homebrew" >> $GITHUB_ENV
-          elif [[ "${{ matrix.platform }}" == darwin-x86_64 ]] || [[ "${{ matrix.platform }}" == linux-* ]]; then
+          elif [[ "${{ matrix.platform }}" == darwin-x86_64 ]]; then
             echo "PREFIXDIR=/usr/local" >> $GITHUB_ENV
           fi
+          # For Linux, don't set PREFIXDIR - let scripts auto-detect based on SYSROOT
 
       # Build the plugin
       - name: Build plugin
