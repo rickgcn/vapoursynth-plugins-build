@@ -28,14 +28,12 @@ releases:
           - cmd: make -j{NPROC}
           - cmd: sudo make install
       linux-.*:
-        env:
-          LDFLAGS: "-static-libatomic"
         commands:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}
           - cwd: "{WORKDIR}/ffms2-5.0"
             cmd: ./autogen.sh --host={TARGET_TRIPLET}
-          - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET}
+          - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET} --extra-libs=-latomic
           - cmd: make -j{NPROC}
           - cmd: make install
     artifacts:
