@@ -78,16 +78,9 @@ class EnvironmentManager:
             Dictionary of environment variables
         """
         import os
-        from pathlib import Path
-
-        # Set INSTALLDIR to a common global directory
-        # Use workdir's parent/parent/install for all dependencies
-        workdir_path = Path(workdir)
-        install_dir = workdir_path.parent.parent / 'install'
 
         env = {
             'WORKDIR': workdir,
-            'INSTALLDIR': str(install_dir),
         }
 
         # Set PREFIXDIR based on platform
@@ -98,7 +91,6 @@ class EnvironmentManager:
         elif platform.startswith('darwin-aarch64'):
             env['PREFIXDIR'] = '/opt/homebrew'
 
-        # Check for SYSROOT from environment (for cross-compilation)
         if 'SYSROOT' in os.environ:
             env['SYSROOT'] = os.environ['SYSROOT']
 
