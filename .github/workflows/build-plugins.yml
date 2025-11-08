@@ -321,6 +321,7 @@ jobs:
 
       # Upload build logs on failure
       - name: Upload build logs
+        if: failure() || success()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-${{ matrix.version }}-${{ matrix.platform }}-logs
