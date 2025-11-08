@@ -115,7 +115,7 @@ dependencies:
               - cmd: make install
           "linux-x86_64-glibc":
             env:
-              LDFLAGS: -lm
+              CFLAGS: -lm
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
