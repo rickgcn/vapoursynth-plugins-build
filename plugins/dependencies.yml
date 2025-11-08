@@ -122,7 +122,7 @@ dependencies:
               - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
                 cmd: ./autogen.sh --host={TARGET_TRIPLET}
               - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET} --enable-static --disable-shared
-              - cmd: make -j{NPROC}
+              - cmd: make V=1 -j{NPROC}
               - cmd: make install
 
   zlib:
