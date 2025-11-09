@@ -29,7 +29,7 @@ releases:
           - cmd: sudo make install
       linux-.*:
         env:
-          LDFLAGS: "-Wl,-Bstatic -latomic"
+          LDFLAGS: "-Wl,--push-state -Wl,-Bstatic -latomic -Wl,--pop-state"
         commands:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}
