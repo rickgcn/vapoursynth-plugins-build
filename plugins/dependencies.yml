@@ -104,26 +104,14 @@ dependencies:
               - cmd: ./configure --prefix={PREFIXDIR}
               - cmd: make -j{NPROC}
               - cmd: sudo make install
-          "linux-x86_64-musl":
+          "linux-.*":
             commands:
               - cwd: "{WORKDIR}"
                 cmd: tar xf {DL_FILE_NAME}
               - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
-                cmd: ./autogen.sh --host={TARGET_TRIPLET}
-              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET} --enable-static --disable-shared
-              - cmd: make -j{NPROC}
-              - cmd: make install
-          "linux-x86_64-glibc":
-            env:
-              LDFLAGS: "-Wl,-Bstatic -lm -Wl,-Bdynamic"
-            commands:
-              - cwd: "{WORKDIR}"
-                cmd: tar xf {DL_FILE_NAME}
-              - cwd: "{WORKDIR}/Little-CMS-lcms2.17"
-                cmd: ./autogen.sh --host={TARGET_TRIPLET}
-              - cmd: ./configure --prefix={PREFIXDIR} --host={TARGET_TRIPLET} --enable-static --disable-shared
-              - cmd: make V=1 -j{NPROC}
-              - cmd: make install
+                cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --default-library=static --cross-file {MESON_CROSS_FILE}
+              - cmd: ninja -C build
+              - cmd: ninja -C build install
 
   zlib:
     repository: https://github.com/madler/zlib.git
