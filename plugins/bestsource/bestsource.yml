@@ -39,21 +39,28 @@ releases:
               path = Path("{WORKDIR}/bestsource/src/bsshared.cpp")
               text = path.read_text()
 
-              target = "#include <cinttypes>"
-              patch = "\n".join([
+              if "__STDC_FORMAT_MACROS" in text or "#include <inttypes.h>" in text:
+                  raise SystemExit(0)
+
+              markers = [
+                  "#include <libavutil/log.h>",
+                  "#include <libavutil/avutil.h>",
+              ]
+
+              marker = next((m for m in markers if m in text), None)
+              if marker is None:
+                  raise SystemExit("Failed to find libavutil include marker in bsshared.cpp")
+
+              block = "\n".join([
                   "#ifndef __STDC_FORMAT_MACROS",
                   "#define __STDC_FORMAT_MACROS",
                   "#endif",
-                  "#include <cinttypes>",
+                  "#include <inttypes.h>",
+                  "",
+                  marker,
               ])
 
-              if patch in text:
-                  raise SystemExit(0)
-
-              if target not in text:
-                  raise SystemExit("Failed to locate '#include <cinttypes>' in bsshared.cpp")
-
-              text = text.replace(target, patch, 1)
+              text = text.replace(marker, block, 1)
               path.write_text(text)
               PY
           - cmd: sed -i 's/library(\x27libbestsource\x27/static_library(\x27libbestsource\x27/' meson.build
