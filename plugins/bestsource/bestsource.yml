@@ -32,37 +32,7 @@ releases:
         commands:
           - cwd: "{WORKDIR}/bestsource"
             cmd: git submodule update --init --recursive
-          - cmd: |
-              python3 - <<'PY'
-              from pathlib import Path
-
-              path = Path("{WORKDIR}/bestsource/src/bsshared.cpp")
-              text = path.read_text()
-
-              if "__STDC_FORMAT_MACROS" in text or "#include <inttypes.h>" in text:
-                  raise SystemExit(0)
-
-              markers = [
-                  "#include <libavutil/log.h>",
-                  "#include <libavutil/avutil.h>",
-              ]
-
-              marker = next((m for m in markers if m in text), None)
-              if marker is None:
-                  raise SystemExit("Failed to find libavutil include marker in bsshared.cpp")
-
-              block = "\n".join([
-                  "#ifndef __STDC_FORMAT_MACROS",
-                  "#define __STDC_FORMAT_MACROS",
-                  "#endif",
-                  "#include <inttypes.h>",
-                  "",
-                  marker,
-              ])
-
-              text = text.replace(marker, block, 1)
-              path.write_text(text)
-              PY
+          - cmd: bash -lc "cd {WORKDIR}/bestsource && (grep -q '#include <cinttypes>' src/bsshared.cpp || sed -i '/#include <cassert>/a #include <cinttypes>' src/bsshared.cpp)"
           - cmd: sed -i 's/library(\x27libbestsource\x27/static_library(\x27libbestsource\x27/' meson.build
           - cmd: meson setup build --prefix={PREFIXDIR} --buildtype=release --cross-file {MESON_CROSS_FILE}
           - cmd: ninja -C build
