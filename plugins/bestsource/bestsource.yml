@@ -30,7 +30,7 @@ releases:
           - cmd: sudo ninja -C build install
       linux-.*:
         env:
-          CXXFLAGS="-static-libstdc++"
+          CXXFLAGS: "-static-libstdc++"
         commands:
           - cwd: "{WORKDIR}/bestsource"
             cmd: git submodule update --init --recursive
