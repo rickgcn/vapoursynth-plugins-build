@@ -32,7 +32,7 @@ releases:
         commands:
           - cwd: "{WORKDIR}/bestsource"
             cmd: git submodule update --init --recursive
-          - cmd: >
+          - cmd: |
               python3 - <<'PY'
               from pathlib import Path
 
