@@ -29,7 +29,8 @@ releases:
           - cmd: sudo make install
       linux-.*:
         env:
-          LDFLAGS: "-Wl,-Bstatic -latomic -Wl,-Bdynamic"
+          CFLAGS: "-static-libgcc"
+          CXXFLAGS: "-static-libstdc++"
         commands:
           - cwd: "{WORKDIR}"
             cmd: tar xf {DL_FILE_NAME}
